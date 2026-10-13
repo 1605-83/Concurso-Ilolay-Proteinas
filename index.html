@@ -83,7 +83,7 @@ footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
 <section class="kpis" id="kpis"></section>
 
 <h2>Cobertura por vendedor <span class="tag" id="tagObj"></span></h2>
-<p class="desc">Base de cada vendedor = clientes a los que les vendió algún producto Ilolay en septiembre. Clientes con compra = clientes de esa base que compraron al menos un producto Ilolay Proteínas en octubre. Meta = <span id="descObj"></span> de su base de clientes.</p>
+<p class="desc">Base de cada vendedor = autoservicios y almacenes a los que les vendió algún producto Ilolay en septiembre. Clientes con compra = clientes de esa base que compraron al menos un producto Ilolay Proteínas en octubre. Meta = <span id="descObj"></span> de su base de clientes.</p>
 <div id="tblVend"></div>
 
 <h2>Productos del concurso</h2>
@@ -91,7 +91,7 @@ footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
 
 <footer>
   Cliente con compra = cliente con importe neto positivo en los 8 productos del concurso en octubre (ventas menos devoluciones).
-  Base de clientes = clientes con compra neta positiva de cualquier producto Ilolay en septiembre 2026 (por fecha de comprobante), asignados al vendedor que les vendió. Faltan = clientes que hay que sumar para llegar a la meta.
+  Base de clientes = autoservicios y almacenes (según el ramo de la ficha de Gescom) con compra neta positiva de cualquier producto Ilolay en septiembre 2026 (por fecha de comprobante), asignados al vendedor que les vendió. Faltan = clientes que hay que sumar para llegar a la meta.
   Pedidos sin facturar = pedidos cargados que todavía no tienen factura (se ubican por la fecha de carga). Verde: meta cumplida; amarillo: dos tercios de la meta o más; rojo: menos.
   <span id="fuente"></span>
 </footer>
@@ -99,7 +99,7 @@ footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
 </div>
 
 <script>
-const REPO='1605-83/Reporte-Diario-Ventas', MES='2026-10', MES_BASE='2026-09';
+const REPO='1605-83/Reporte-Diario-Ventas', MES='2026-10', MES_BASE='2026-09', RAMOS=/^\s*(autoservicio|almac[eé]n)/i;
 const CODIGOS=[5323,4411,4410,4531,4530,3570,3571,5325];
 const VEND=[2,4,5,6,7,24,26,27,28,29,30,51,52,53,54,56];
 const $=id=>document.getElementById(id);
@@ -147,7 +147,8 @@ function procesar(txt, cart, txtSep){
   const ficha={}; if(cart&&cart.v) Object.values(cart.v).forEach(l=>l.forEach(c=>{ficha[String(c[0]).trim()]=c;}));
   const sep=baseSep(txtSep);
   const V=VEND.map(v=>{const b=sep.por[v]||{};
-    const cartera=Object.keys(b).filter(k=>b[k].n>0.5).map(k=>{const f=ficha[k];return f?f:[k,b[k].rs,'','','',''];});
+    // solo autoservicios y almacenes (ramo de la ficha del cliente en Gescom)
+    const cartera=Object.keys(b).filter(k=>b[k].n>0.5&&ficha[k]&&RAMOS.test(ficha[k][4]||'')).map(k=>ficha[k]);
     return {cod:v,nom:names[v]||sep.names[v]||('Vendedor '+v),base:cartera.length,cartera};});
   return {rows,arts,V,dmin,dmax};
 }
@@ -184,11 +185,11 @@ function render(){
   const tb=V.reduce((a,r)=>a+r.base,0), tc=V.reduce((a,r)=>a+r.cc,0), tm=V.reduce((a,r)=>a+r.meta,0), tf=V.reduce((a,r)=>a+r.falta,0);
   const tn=V.reduce((a,r)=>a+r.neto,0), tq=V.reduce((a,r)=>a+r.q,0), ok=V.filter(r=>r.base&&!r.falta).length;
   const dm=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
-  $('sub').textContent=`Octubre 2026${D.dmin?` (${dm(D.dmin)} al ${dm(D.dmax)})`:''} · por ${TF_NOM[TIPO_F]}${$('pend').checked?' · incluye pedidos sin facturar':''} · ${V.length} vendedores · base ${fmtN(tb)} clientes Ilolay de septiembre`;
+  $('sub').textContent=`Octubre 2026${D.dmin?` (${dm(D.dmin)} al ${dm(D.dmax)})`:''} · por ${TF_NOM[TIPO_F]}${$('pend').checked?' · incluye pedidos sin facturar':''} · ${V.length} vendedores · base ${fmtN(tb)} autoservicios y almacenes Ilolay de septiembre`;
   $('tagObj').textContent=`Objetivo ${fmtN(obj*100)}%`; $('descObj').textContent=fmtN(obj*100)+'%';
   $('kpis').innerHTML=[
     ['k1','Cobertura total',fmtP(tb?tc/tb:0),`Objetivo ${fmtN(obj*100)}%`],
-    ['k2','Clientes con compra',fmtN(tc),`de ${fmtN(tb)} clientes Ilolay de septiembre`],
+    ['k2','Clientes con compra',fmtN(tc),`de ${fmtN(tb)} autoservicios y almacenes Ilolay de septiembre`],
     ['k3','Meta de clientes',fmtN(tm),`Suma de las metas de los ${V.length} vendedores`],
     ['k4','Faltan para la meta',fmtN(tf),tf?'clientes por sumar':'✔ objetivo cumplido'],
     ['k5','Vendedores que cumplen',`${ok} de ${V.length}`,'llegaron a su meta'],
