@@ -60,9 +60,9 @@ tr.sub td{background:#fff;padding:0 12px 12px;white-space:normal}
 .sublist th{position:sticky;top:0;background:#14304F}
 .sublist td,.sublist th{padding:5px 10px}
 .subnote{font-size:.8rem;color:var(--ink2);margin:8px 0 0}
-.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
-.tabs a{font-weight:800;text-decoration:none;color:#000;background:#fff;border:2px solid #000;border-radius:8px 8px 0 0;padding:8px 16px}
-.tabs a[aria-selected="true"]{background:#000;color:#fff}
+.periodo{margin-top:18px;background:#000;color:#fff;border-radius:8px;padding:10px 14px}
+.periodo .ptit{font-weight:800;margin-right:8px}
+.periodo label{color:#fff}
 details.prod{position:relative;font-size:.85rem}
 details.prod summary{cursor:pointer;list-style:none;background:var(--input);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-weight:700}
 details.prod summary::-webkit-details-marker{display:none}
@@ -91,9 +91,12 @@ footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
   </div>
 </header>
 
-<nav class="tabs" role="tablist">
-  <a role="tab" href="?vista=trim" data-v="trim" id="tabTrim">Trimestre octubre · noviembre · diciembre</a>
-</nav>
+<div class="periodo controls">
+  <span class="ptit">Trimestre octubre · noviembre · diciembre</span>
+  <label>Mes <select id="pMes" aria-label="Mes"><option value="">Trimestre completo</option><option value="2026-10">Octubre</option><option value="2026-11">Noviembre</option><option value="2026-12">Diciembre</option></select></label>
+  <label>Desde <input type="date" id="pDesde" min="2026-10-01" max="2026-12-31" value="2026-10-01"></label>
+  <label>Hasta <input type="date" id="pHasta" min="2026-10-01" max="2026-12-31" value="2026-12-31"></label>
+</div>
 
 <p id="loadMsg" style="margin:18px 0 0;font-weight:700">Buscando las ventas más recientes…</p>
 <div id="app" hidden>
@@ -116,17 +119,17 @@ footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
 <script>
 const REPO='1605-83/Reporte-Diario-Ventas', RAMOS=/^\s*(autoservicio|almac[eé]n)/i;
 // Concurso trimestral: octubre, noviembre y diciembre 2026. Base: autoservicios y almacenes de la cartera actual de cada vendedor.
-// Solapas: el trimestre acumulado y el mes en curso. Va en la direccion (?vista=curso)
+// Filtro de periodo: mes del trimestre y rango de dias (desde / hasta); por defecto el trimestre completo
 const MESES_N=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const nm=ym=>MESES_N[+ym.slice(5,7)-1]+' '+ym.slice(0,4), cap=s=>s[0].toUpperCase()+s.slice(1);
-const TRIM=['2026-10','2026-11','2026-12'];
+const TRIM=['2026-10','2026-11','2026-12'], T_INI='2026-10-01', T_FIN='2026-12-31';
 const MES_HOY=new Date(Date.now()-3*3600e3).toISOString().slice(0,7);
-const VISTA='trim';
-const PER=VISTA==='curso'?[MES_HOY]:TRIM.filter(m=>m<=MES_HOY);
-const LBL=VISTA==='curso'?nm(MES_HOY):'octubre a diciembre 2026';
-document.querySelectorAll('.tabs a').forEach(a=>{a.setAttribute('aria-selected',a.dataset.v===VISTA);
-  const u=new URL(location.href);u.searchParams.set('vista',a.dataset.v);a.href=u.search;});
-document.querySelectorAll(".mC").forEach(e=>e.textContent=LBL);
+const PER=TRIM.filter(m=>m<=MES_HOY);
+const finMes=ym=>{const [y,m]=ym.split('-').map(Number);return ym+'-'+String(new Date(y,m,0).getDate()).padStart(2,'0');};
+const fDia=d=>d.slice(8,10)+'/'+d.slice(5,7);
+function rango(){ let a=document.getElementById('pDesde').value||T_INI, b=document.getElementById('pHasta').value||T_FIN;
+  if(a<T_INI)a=T_INI; if(b>T_FIN)b=T_FIN; if(a>b)[a,b]=[b,a]; return [a,b]; }
+let LBL='octubre a diciembre 2026';
 const CODIGOS=[5323,4411,4410,4531,4530,3570,3571,5325];
 const NOM_ART={5323:'LECHE LARGA VIDA PROTEINAS X1L ILOLAY',4411:'TETRATOP PROTEINA VAINILLA X950GR ILOLAY',4410:'TETRATOP PROTEINA FRUTILLA X950GR ILOLAY',
   4531:'TETRATOP PROTEINA VAINILLA X220GR ILOLAY',4530:'TETRATOP PROTEINA FRUTILLA X220GR ILOLAY',3570:'YOGUR BATIDO PROTEINA FRUTILLA X 180GR ILOLAY',
@@ -176,7 +179,7 @@ function procesar(meses, cart){
     if(!f||f.slice(0,7)!==ym||f>HOY_ISO) continue;
     if(!dmin||f<dmin)dmin=f; if(f>dmax)dmax=f;
     arts[c]=arts[c]||(r[I.art]||'').trim(); names[cv]=names[cv]||titulo(r[I.vn]);
-    rows.push({cv,k:(r[I.cli]||'').trim(),rs:(r[I.rs]||'').trim(),c,n:num(r[I.neto]),b:num(r[I.bru]),q:num(r[I.cant]),pend});
+    rows.push({f,cv,k:(r[I.cli]||'').trim(),rs:(r[I.rs]||'').trim(),c,n:num(r[I.neto]),b:num(r[I.bru]),q:num(r[I.cant]),pend});
   }
   });
   // Base de cada vendedor: los autoservicios y almacenes de su cartera actual (clientes activos de Gescom, ramo de la ficha)
@@ -189,14 +192,15 @@ function calc(){
   const by={}; D.V.forEach(v=>by[v.cod]={cli:{},neto:0,q:0});
   // solo cuentan las ventas a clientes de la base (autoservicios y almacenes de su cartera) y de los productos elegidos
   const base={}; D.V.forEach(v=>base[v.cod]=new Set(v.cartera.map(c=>String(c[0]).trim())));
-  D.rows.forEach(x=>{ if(x.pend&&!inclP) return; if(!SEL.has(x.c)) return; if(!base[x.cv].has(x.k)) return;
+  const [d1,d2]=rango(); let dmin='',dmax='';
+  D.rows.forEach(x=>{ if(x.f<d1||x.f>d2) return; if(x.pend&&!inclP) return; if(!SEL.has(x.c)) return; if(!base[x.cv].has(x.k)) return; if(!dmin||x.f<dmin)dmin=x.f; if(x.f>dmax)dmax=x.f;
     const o=by[x.cv]; o.cli[x.k]=(o.cli[x.k]||0)+x.n; o.neto+=conIva?x.b:x.n; o.q+=x.q; });
   const V=D.V.map(v=>{ const o=by[v.cod]; const buy=new Set(Object.keys(o.cli).filter(k=>o.cli[k]>0.5));
     const enBase=new Set(v.cartera.map(c=>String(c[0]).trim()));
     const cc=[...buy].filter(k=>enBase.has(k)).length, meta=Math.ceil(v.base*obj);
     const sin=v.cartera.filter(c=>!buy.has(String(c[0]).trim())).sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
     return {...v,cc,cob:v.base?cc/v.base:0,meta,falta:Math.max(meta-cc,0),neto:o.neto,q:o.q,sin}; });
-  return {obj,V};
+  return {obj,V,dmin,dmax,d1,d2};
 }
 // Filtro de productos (desplegable arriba): por defecto los 8 codigos del concurso; se recuerda en este navegador
 let SEL=new Set(Array.isArray(st.prod)&&st.prod.length?st.prod.filter(c=>CODIGOS.includes(c)):CODIGOS);
@@ -213,11 +217,16 @@ function initProd(){
 document.addEventListener('click',e=>{ const d=$('dProd'); if(d.open&&!d.contains(e.target)) d.open=false; });
 const color=(c,obj)=>c>=obj?'var(--ok)':c>=obj*2/3?'var(--mid)':'var(--low)';
 function render(){
-  const {obj,V}=calc(), conIva=$('iva').value==='b';
+  const {obj,V,dmin,dmax,d1,d2}=calc(), conIva=$('iva').value==='b';
+  // texto del periodo elegido
+  const mesEnt=TRIM.find(m=>d1===m+'-01'&&d2===finMes(m));
+  LBL=(d1===T_INI&&d2===T_FIN)?'octubre a diciembre 2026':mesEnt?nm(mesEnt):`el período del ${fDia(d1)} al ${fDia(d2)}/2026`;
+  document.querySelectorAll('.mC').forEach(e=>e.textContent=LBL);
+  $('pMes').value=(d1===T_INI&&d2===T_FIN)?'':(mesEnt||$('pMes').value);
   const tb=V.reduce((a,r)=>a+r.base,0), tc=V.reduce((a,r)=>a+r.cc,0), tm=V.reduce((a,r)=>a+r.meta,0), tf=V.reduce((a,r)=>a+r.falta,0);
   const tn=V.reduce((a,r)=>a+r.neto,0), tq=V.reduce((a,r)=>a+r.q,0), ok=V.filter(r=>r.base&&!r.falta).length;
   const dm=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
-  $('sub').textContent=`${cap(LBL)}${D.dmin?` (${dm(D.dmin)} al ${dm(D.dmax)})`:''} · por ${TF_NOM[TIPO_F]}${$('pend').checked?' · incluye pedidos sin facturar':''} · ${V.length} vendedores · base ${fmtN(tb)} autoservicios y almacenes`;
+  $('sub').textContent=`${cap(LBL)}${dmin?` (ventas del ${dm(dmin)} al ${dm(dmax)})`:' (sin ventas en ese rango)'} · por ${TF_NOM[TIPO_F]}${$('pend').checked?' · incluye pedidos sin facturar':''} · ${V.length} vendedores · base ${fmtN(tb)} autoservicios y almacenes`;
   $('tagObj').textContent=`Objetivo ${fmtN(obj*100)}%`; $('descObj').textContent=fmtN(obj*100)+'%';
   $('kpis').innerHTML=[
     ['k1','Base clientes',fmtN(tb),`Autoservicios y almacenes en cartera de ${V.length} vendedores`],
@@ -239,6 +248,8 @@ function render(){
 }
 document.addEventListener('click',e=>{const b=e.target.closest('.exp');if(!b)return;const id=+b.dataset.id;ABIERTOS.has(id)?ABIERTOS.delete(id):ABIERTOS.add(id);render();});
 $('obj').addEventListener('change',()=>{st.obj=+$('obj').value;save();render();});
+$('pMes').addEventListener('change',()=>{ const m=$('pMes').value; $('pDesde').value=m?m+'-01':T_INI; $('pHasta').value=m?finMes(m):T_FIN; if(D)render(); });
+['pDesde','pHasta'].forEach(id=>$(id).addEventListener('change',()=>{ if(D)render(); }));
 $('iva').addEventListener('change',()=>{st.iva=$('iva').value;save();render();});
 $('pend').addEventListener('change',()=>{st.pend=$('pend').checked;save();render();});
 
