@@ -60,9 +60,7 @@ tr.sub td{background:#fff;padding:0 12px 12px;white-space:normal}
 .sublist th{position:sticky;top:0;background:#14304F}
 .sublist td,.sublist th{padding:5px 10px}
 .subnote{font-size:.8rem;color:var(--ink2);margin:8px 0 0}
-.periodo{margin-top:18px;background:#000;color:#fff;border-radius:8px;padding:10px 14px}
-.periodo .ptit{font-weight:800;margin-right:8px}
-.periodo label{color:#fff}
+.periodo{margin-top:18px}
 details.prod{position:relative;font-size:.85rem}
 details.prod summary{cursor:pointer;list-style:none;background:var(--input);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-weight:700}
 details.prod summary::-webkit-details-marker{display:none}
@@ -92,7 +90,6 @@ footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
 </header>
 
 <div class="periodo controls">
-  <span class="ptit">Trimestre octubre · noviembre · diciembre</span>
   <label>Mes <select id="pMes" aria-label="Mes"><option value="">Trimestre completo</option><option value="2026-10">Octubre</option><option value="2026-11">Noviembre</option><option value="2026-12">Diciembre</option></select></label>
   <label>Desde <input type="date" id="pDesde" min="2026-10-01" max="2026-12-31" value="2026-10-01"></label>
   <label>Hasta <input type="date" id="pHasta" min="2026-10-01" max="2026-12-31" value="2026-12-31"></label>
