@@ -83,7 +83,7 @@ footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
 <section class="kpis" id="kpis"></section>
 
 <h2>Cobertura por vendedor <span class="tag" id="tagObj"></span></h2>
-<p class="desc">Clientes de la cartera de cada vendedor que compraron al menos un producto Ilolay Proteínas en octubre. Meta = <span id="descObj"></span> de su base de clientes.</p>
+<p class="desc">Base de cada vendedor = clientes a los que les vendió algún producto Ilolay en septiembre. Clientes con compra = clientes de esa base que compraron al menos un producto Ilolay Proteínas en octubre. Meta = <span id="descObj"></span> de su base de clientes.</p>
 <div id="tblVend"></div>
 
 <h2>Productos del concurso</h2>
@@ -91,7 +91,7 @@ footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
 
 <footer>
   Cliente con compra = cliente con importe neto positivo en los 8 productos del concurso en octubre (ventas menos devoluciones).
-  Base de clientes = clientes activos de la cartera de cada vendedor en Gescom. Faltan = clientes que hay que sumar para llegar a la meta.
+  Base de clientes = clientes con compra neta positiva de cualquier producto Ilolay en septiembre 2026 (por fecha de comprobante), asignados al vendedor que les vendió. Faltan = clientes que hay que sumar para llegar a la meta.
   Pedidos sin facturar = pedidos cargados que todavía no tienen factura (se ubican por la fecha de carga). Verde: meta cumplida; amarillo: dos tercios de la meta o más; rojo: menos.
   <span id="fuente"></span>
 </footer>
@@ -99,7 +99,7 @@ footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
 </div>
 
 <script>
-const REPO='1605-83/Reporte-Diario-Ventas', MES='2026-10';
+const REPO='1605-83/Reporte-Diario-Ventas', MES='2026-10', MES_BASE='2026-09';
 const CODIGOS=[5323,4411,4410,4531,4530,3570,3571,5325];
 const VEND=[2,4,5,6,7,24,26,27,28,29,30,51,52,53,54,56];
 const $=id=>document.getElementById(id);
@@ -126,7 +126,7 @@ $('fFecha').addEventListener('change',e=>{const v=e.target.value;try{localStorag
   const u=new URL(location.href);u.searchParams.set('fecha',v);location.href=u.toString();});
 
 let D=null; const ABIERTOS=new Set();
-function procesar(txt, cart){
+function procesar(txt, cart, txtSep){
   const lines=txt.split(/\r?\n/), H=lines[0].split(';').map(h=>h.trim());
   const ix=n=>{const i=H.indexOf(n);if(i<0)throw new Error('Falta la columna '+n);return i;};
   const I={cli:ix('Cliente'),fc:ix('FechaComprobante'),fe:ix('FechaEntrega'),fca:ix('FechaCarga'),cod:ix('Codigo'),cant:ix('CantBase'),
@@ -143,8 +143,27 @@ function procesar(txt, cart){
     arts[c]=arts[c]||(r[I.art]||'').trim(); names[cv]=names[cv]||titulo(r[I.vn]);
     rows.push({cv,k:(r[I.cli]||'').trim(),rs:(r[I.rs]||'').trim(),c,n:num(r[I.neto]),b:num(r[I.bru]),q:num(r[I.cant]),pend});
   }
-  const V=VEND.map(v=>{const c=(cart&&cart.v&&cart.v[v])||[]; return {cod:v,nom:names[v]||('Vendedor '+v),base:c.length,cartera:c};});
+  // Base de cada vendedor: los clientes a los que les vendio algun producto Ilolay en septiembre (por fecha de comprobante)
+  const ficha={}; if(cart&&cart.v) Object.values(cart.v).forEach(l=>l.forEach(c=>{ficha[String(c[0]).trim()]=c;}));
+  const sep=baseSep(txtSep);
+  const V=VEND.map(v=>{const b=sep.por[v]||{};
+    const cartera=Object.keys(b).filter(k=>b[k].n>0.5).map(k=>{const f=ficha[k];return f?f:[k,b[k].rs,'','','',''];});
+    return {cod:v,nom:names[v]||sep.names[v]||('Vendedor '+v),base:cartera.length,cartera};});
   return {rows,arts,V,dmin,dmax};
+}
+function baseSep(txt){
+  const lines=txt.split(/\r?\n/), H=lines[0].split(';').map(h=>h.trim());
+  const ix=n=>{const i=H.indexOf(n);if(i<0)throw new Error('Falta la columna '+n+' en septiembre');return i;};
+  const I={cli:ix('Cliente'),fc:ix('FechaComprobante'),fca:ix('FechaCarga'),neto:ix('ImporteNetoItem'),rs:ix('RazonSocial'),cv:ix('CodVendedor'),vn:ix('Vendedor'),prov:ix('Proveedor')};
+  const vs=new Set(VEND), por={}, names={};
+  for(let i=1;i<lines.length;i++){ const ln=lines[i]; if(ln.indexOf('ILOLAY')<0) continue;
+    const r=ln.split(';'); if(!/ILOLAY/i.test(r[I.prov]||'')) continue;
+    const cv=parseInt(r[I.cv],10); if(!vs.has(cv)) continue;
+    const f=isoDe(r[I.fc])||isoDe(r[I.fca]); if(!f||f.slice(0,7)!==MES_BASE) continue;
+    const k=(r[I.cli]||'').trim(), o=(por[cv]||(por[cv]={}));
+    (o[k]||(o[k]={n:0,rs:(r[I.rs]||'').trim()})).n+=num(r[I.neto]); names[cv]=names[cv]||titulo(r[I.vn]);
+  }
+  return {por,names};
 }
 function calc(){
   const obj=(+$('obj').value||30)/100, inclP=$('pend').checked, conIva=$('iva').value==='b';
@@ -153,7 +172,8 @@ function calc(){
   D.rows.forEach(x=>{ if(x.pend&&!inclP) return; const o=by[x.cv]; o.cli[x.k]=(o.cli[x.k]||0)+x.n; o.neto+=conIva?x.b:x.n; o.q+=x.q;
     const a=art[x.c]; a.neto+=conIva?x.b:x.n; a.q+=x.q; a.cli.add(x.cv+'|'+x.k); });
   const V=D.V.map(v=>{ const o=by[v.cod]; const buy=new Set(Object.keys(o.cli).filter(k=>o.cli[k]>0.5));
-    const cc=buy.size, meta=Math.ceil(v.base*obj);
+    const enBase=new Set(v.cartera.map(c=>String(c[0]).trim()));
+    const cc=[...buy].filter(k=>enBase.has(k)).length, meta=Math.ceil(v.base*obj);
     const sin=v.cartera.filter(c=>!buy.has(String(c[0]).trim())).sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
     return {...v,cc,cob:v.base?cc/v.base:0,meta,falta:Math.max(meta-cc,0),neto:o.neto,q:o.q,sin}; });
   return {obj,V,art};
@@ -164,11 +184,11 @@ function render(){
   const tb=V.reduce((a,r)=>a+r.base,0), tc=V.reduce((a,r)=>a+r.cc,0), tm=V.reduce((a,r)=>a+r.meta,0), tf=V.reduce((a,r)=>a+r.falta,0);
   const tn=V.reduce((a,r)=>a+r.neto,0), tq=V.reduce((a,r)=>a+r.q,0), ok=V.filter(r=>r.base&&!r.falta).length;
   const dm=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
-  $('sub').textContent=`Octubre 2026${D.dmin?` (${dm(D.dmin)} al ${dm(D.dmax)})`:''} · por ${TF_NOM[TIPO_F]}${$('pend').checked?' · incluye pedidos sin facturar':''} · ${V.length} vendedores · base ${fmtN(tb)} clientes`;
+  $('sub').textContent=`Octubre 2026${D.dmin?` (${dm(D.dmin)} al ${dm(D.dmax)})`:''} · por ${TF_NOM[TIPO_F]}${$('pend').checked?' · incluye pedidos sin facturar':''} · ${V.length} vendedores · base ${fmtN(tb)} clientes Ilolay de septiembre`;
   $('tagObj').textContent=`Objetivo ${fmtN(obj*100)}%`; $('descObj').textContent=fmtN(obj*100)+'%';
   $('kpis').innerHTML=[
     ['k1','Cobertura total',fmtP(tb?tc/tb:0),`Objetivo ${fmtN(obj*100)}%`],
-    ['k2','Clientes con compra',fmtN(tc),`de ${fmtN(tb)} clientes en cartera`],
+    ['k2','Clientes con compra',fmtN(tc),`de ${fmtN(tb)} clientes Ilolay de septiembre`],
     ['k3','Meta de clientes',fmtN(tm),`Suma de las metas de los ${V.length} vendedores`],
     ['k4','Faltan para la meta',fmtN(tf),tf?'clientes por sumar':'✔ objetivo cumplido'],
     ['k5','Vendedores que cumplen',`${ok} de ${V.length}`,'llegaron a su meta'],
@@ -176,7 +196,7 @@ function render(){
   ].map(k=>`<div class="kpi ${k[0]}"><div class="l">${k[1]}</div><div class="v">${k[2]}</div><div class="n">${k[3]}</div></div>`).join('');
   const mx=Math.max(obj*1.6,...V.map(r=>r.cob));
   const meter=c=>`<div class="meter" title="La línea negra marca el objetivo"><i style="width:${c/mx*100}%;background:${color(c,obj)}"></i><b style="left:calc(${obj/mx*100}% - 1px)"></b></div>`;
-  const sub=r=>`<tr class="sub"><td colspan="9"><p class="subnote"><b>${esc(r.nom)}: ${fmtN(r.sin.length)} clientes de su cartera sin compra de Ilolay Proteínas en octubre.</b></p>${r.sin.length?`<div class="sublist"><table><thead><tr><th class="l">Cliente</th><th class="l">Razón social</th><th class="l">Dirección</th><th class="l">Localidad</th><th class="l">Ramo</th><th class="l">Días de visita</th></tr></thead><tbody>${r.sin.map(c=>`<tr><td class="l">${esc(c[0])}</td><td class="l">${esc(c[1])}</td><td class="l">${esc(c[2])}</td><td class="l">${esc(c[3])}</td><td class="l">${esc(c[4])}</td><td class="l">${esc(c[5])}</td></tr>`).join('')}</tbody></table></div>`:''}</td></tr>`;
+  const sub=r=>`<tr class="sub"><td colspan="9"><p class="subnote"><b>${esc(r.nom)}: ${fmtN(r.sin.length)} clientes que compraron Ilolay en septiembre y todavía no compraron Ilolay Proteínas en octubre.</b></p>${r.sin.length?`<div class="sublist"><table><thead><tr><th class="l">Cliente</th><th class="l">Razón social</th><th class="l">Dirección</th><th class="l">Localidad</th><th class="l">Ramo</th><th class="l">Días de visita</th></tr></thead><tbody>${r.sin.map(c=>`<tr><td class="l">${esc(c[0])}</td><td class="l">${esc(c[1])}</td><td class="l">${esc(c[2])}</td><td class="l">${esc(c[3])}</td><td class="l">${esc(c[4])}</td><td class="l">${esc(c[5])}</td></tr>`).join('')}</tbody></table></div>`:''}</td></tr>`;
   const rows=[...V].sort((a,b)=>b.cob-a.cob);
   $('tblVend').innerHTML=`<div class="tbl"><table><thead><tr><th class="l">Código</th><th class="l">Vendedor</th><th>Base clientes</th><th>Clientes con compra</th><th>Cobertura</th><th class="l">Avance vs objetivo ${fmtN(obj*100)}%</th><th>Meta clientes</th><th>Faltan para objetivo</th><th>Clientes sin compra</th></tr></thead>
   <tbody>${rows.map(r=>{const ab=ABIERTOS.has(r.cod);return `<tr><td class="l cod">${r.cod}</td><td class="l">${esc(r.nom)}</td><td>${fmtN(r.base)}</td><td><b>${fmtN(r.cc)}</b></td>
@@ -200,11 +220,13 @@ $('pend').addEventListener('change',()=>{st.pend=$('pend').checked;save();render
     const [lst,cart]=await Promise.all([
       fetch('https://api.github.com/repos/'+REPO+'/contents/meses',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('No se pudo leer el repositorio ('+r.status+')');return r.json();}),
       fetch('https://raw.githubusercontent.com/'+REPO+'/main/carteras.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null)]);
-    const f=lst.filter(x=>x.name.startsWith('ventas-'+MES+'-')&&/\.csv$/i.test(x.name)).sort((a,b)=>b.name.localeCompare(a.name))[0];
+    const ult=ym=>lst.filter(x=>x.name.startsWith('ventas-'+ym+'-')&&/\.csv$/i.test(x.name)).sort((a,b)=>b.name.localeCompare(a.name))[0];
+    const f=ult(MES), fs=ult(MES_BASE);
     if(!f) throw new Error('Todavía no hay ventas de octubre');
-    if(!cart||!cart.v) throw new Error('No se pudieron leer las carteras de clientes');
-    const d=await fetch(f.download_url+'?t='+Date.now()); if(!d.ok) throw new Error('No se pudo descargar '+f.name);
-    D=procesar(new TextDecoder('windows-1252').decode(await d.arrayBuffer()),cart);
+    if(!fs) throw new Error('No están las ventas de septiembre (base de clientes)');
+    const bajar=async x=>{const d=await fetch(x.download_url+'?t='+Date.now()); if(!d.ok) throw new Error('No se pudo descargar '+x.name); return new TextDecoder('windows-1252').decode(await d.arrayBuffer());};
+    const [txt,txtSep]=await Promise.all([bajar(f),bajar(fs)]);
+    D=procesar(txt,cart,txtSep);
     const m=f.name.match(/-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}/);
     $('fuente').textContent=(m?`Datos al ${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}. `:'')+`Carteras al ${cart.fecha||''}. Se actualiza a las 7 hs y 13:30 hs.`;
     $('loadMsg').hidden=true; $('app').hidden=false; render();
