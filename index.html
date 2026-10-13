@@ -83,7 +83,6 @@ footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
 
 <nav class="tabs" role="tablist">
   <a role="tab" href="?vista=trim" data-v="trim" id="tabTrim">Trimestre octubre · noviembre · diciembre</a>
-  <a role="tab" href="?vista=curso" data-v="curso" id="tabCurso">Mes en curso</a>
 </nav>
 
 <p id="loadMsg" style="margin:18px 0 0;font-weight:700">Buscando las ventas más recientes…</p>
@@ -115,12 +114,11 @@ const MESES_N=['enero','febrero','marzo','abril','mayo','junio','julio','agosto'
 const nm=ym=>MESES_N[+ym.slice(5,7)-1]+' '+ym.slice(0,4), cap=s=>s[0].toUpperCase()+s.slice(1);
 const TRIM=['2026-10','2026-11','2026-12'], MES_BASE='2026-09';
 const MES_HOY=new Date(Date.now()-3*3600e3).toISOString().slice(0,7);
-const VISTA=new URLSearchParams(location.search).get('vista')==='curso'?'curso':'trim';
+const VISTA='trim';
 const PER=VISTA==='curso'?[MES_HOY]:TRIM.filter(m=>m<=MES_HOY);
 const LBL=VISTA==='curso'?nm(MES_HOY):'octubre a diciembre 2026';
 document.querySelectorAll('.tabs a').forEach(a=>{a.setAttribute('aria-selected',a.dataset.v===VISTA);
   const u=new URL(location.href);u.searchParams.set('vista',a.dataset.v);a.href=u.search;});
-document.getElementById('tabCurso').textContent='Mes en curso ('+nm(MES_HOY)+')';
 document.querySelectorAll('.mB').forEach(e=>e.textContent=nm(MES_BASE)); document.querySelectorAll('.mC').forEach(e=>e.textContent=LBL);
 const CODIGOS=[5323,4411,4410,4531,4530,3570,3571,5325];
 const VEND=[2,4,5,6,7,24,26,27,28,29,30,51,52,53,54,56];
