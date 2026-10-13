@@ -63,6 +63,15 @@ tr.sub td{background:#fff;padding:0 12px 12px;white-space:normal}
 .tabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
 .tabs a{font-weight:800;text-decoration:none;color:#000;background:#fff;border:2px solid #000;border-radius:8px 8px 0 0;padding:8px 16px}
 .tabs a[aria-selected="true"]{background:#000;color:#fff}
+details.prod{position:relative;font-size:.85rem}
+details.prod summary{cursor:pointer;list-style:none;background:var(--input);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-weight:700}
+details.prod summary::-webkit-details-marker{display:none}
+details.prod summary::after{content:" ▾"}
+.prodpop{position:absolute;right:0;top:calc(100% + 4px);z-index:5;background:#fff;border:2px solid #000;border-radius:8px;box-shadow:4px 4px 0 #000;padding:10px 12px;width:min(440px,calc(100vw - 32px))}
+.prodpop label{display:flex;gap:8px;align-items:flex-start;padding:4px 0;font-size:.85rem}
+.prodpop label b{min-width:3.2em}
+.prodpop .acc{display:flex;gap:8px;margin-top:8px}
+.prodpop .acc button{font-size:.8rem;font-weight:700;background:#fff;border:1px solid #000;border-radius:999px;padding:3px 10px}
 footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
 </style>
 </head>
@@ -78,6 +87,7 @@ footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
     <label>Importe <select id="iva"><option value="n">Sin IVA</option><option value="b">Con IVA</option></select></label>
     <label><input type="checkbox" id="pend" checked style="width:auto"> Incluir pedidos sin facturar</label>
     <label>Objetivo <input type="number" id="obj" min="1" max="100" step="1" value="30">%</label>
+    <details class="prod" id="dProd"><summary id="sProd">Productos del concurso</summary><div class="prodpop" id="lProd"></div></details>
   </div>
 </header>
 
@@ -93,9 +103,6 @@ footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
 <p class="desc">Base de cada vendedor = todos los autoservicios y almacenes de su cartera actual de clientes. Clientes con compra = clientes de esa base que compraron al menos un producto Ilolay Proteínas en <span class="mC"></span>. Meta = <span id="descObj"></span> de su base de clientes.</p>
 <div id="tblVend"></div>
 
-<h2>Productos del concurso</h2>
-<p class="desc">Solo ventas a clientes de la base (autoservicios y almacenes de la cartera de cada vendedor).</p>
-<div id="tblArt"></div>
 
 <footer>
   Cliente con compra = cliente con importe neto positivo en los 8 productos del concurso en <span class="mC"></span> (ventas menos devoluciones).
@@ -121,6 +128,9 @@ document.querySelectorAll('.tabs a').forEach(a=>{a.setAttribute('aria-selected',
   const u=new URL(location.href);u.searchParams.set('vista',a.dataset.v);a.href=u.search;});
 document.querySelectorAll(".mC").forEach(e=>e.textContent=LBL);
 const CODIGOS=[5323,4411,4410,4531,4530,3570,3571,5325];
+const NOM_ART={5323:'LECHE LARGA VIDA PROTEINAS X1L ILOLAY',4411:'TETRATOP PROTEINA VAINILLA X950GR ILOLAY',4410:'TETRATOP PROTEINA FRUTILLA X950GR ILOLAY',
+  4531:'TETRATOP PROTEINA VAINILLA X220GR ILOLAY',4530:'TETRATOP PROTEINA FRUTILLA X220GR ILOLAY',3570:'YOGUR BATIDO PROTEINA FRUTILLA X 180GR ILOLAY',
+  3571:'YOGUR BATIDO PROTEINA VAINILLA X 180GR ILOLAY',5325:'LECHE CHOCO UAT PROTEINAS X200CC ILOLAY'};
 const VEND=[2,4,5,6,7,24,26,27,28,29,30,51,52,53,54,56];
 const $=id=>document.getElementById(id);
 const fmt$=n=>'$ '+Math.round(n).toLocaleString('es-AR');
@@ -177,21 +187,33 @@ function procesar(meses, cart){
 function calc(){
   const obj=(+$('obj').value||30)/100, inclP=$('pend').checked, conIva=$('iva').value==='b';
   const by={}; D.V.forEach(v=>by[v.cod]={cli:{},neto:0,q:0});
-  const art={}; CODIGOS.forEach(c=>art[c]={cli:new Set(),neto:0,q:0});
-  // solo cuentan las ventas a clientes de la base (autoservicios y almacenes de su cartera)
+  // solo cuentan las ventas a clientes de la base (autoservicios y almacenes de su cartera) y de los productos elegidos
   const base={}; D.V.forEach(v=>base[v.cod]=new Set(v.cartera.map(c=>String(c[0]).trim())));
-  D.rows.forEach(x=>{ if(x.pend&&!inclP) return; if(!base[x.cv].has(x.k)) return; const o=by[x.cv]; o.cli[x.k]=(o.cli[x.k]||0)+x.n; o.neto+=conIva?x.b:x.n; o.q+=x.q;
-    const a=art[x.c]; a.neto+=conIva?x.b:x.n; a.q+=x.q; a.cli.add(x.cv+'|'+x.k); });
+  D.rows.forEach(x=>{ if(x.pend&&!inclP) return; if(!SEL.has(x.c)) return; if(!base[x.cv].has(x.k)) return;
+    const o=by[x.cv]; o.cli[x.k]=(o.cli[x.k]||0)+x.n; o.neto+=conIva?x.b:x.n; o.q+=x.q; });
   const V=D.V.map(v=>{ const o=by[v.cod]; const buy=new Set(Object.keys(o.cli).filter(k=>o.cli[k]>0.5));
     const enBase=new Set(v.cartera.map(c=>String(c[0]).trim()));
     const cc=[...buy].filter(k=>enBase.has(k)).length, meta=Math.ceil(v.base*obj);
     const sin=v.cartera.filter(c=>!buy.has(String(c[0]).trim())).sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
     return {...v,cc,cob:v.base?cc/v.base:0,meta,falta:Math.max(meta-cc,0),neto:o.neto,q:o.q,sin}; });
-  return {obj,V,art};
+  return {obj,V};
 }
+// Filtro de productos (desplegable arriba): por defecto los 8 codigos del concurso; se recuerda en este navegador
+let SEL=new Set(Array.isArray(st.prod)&&st.prod.length?st.prod.filter(c=>CODIGOS.includes(c)):CODIGOS);
+if(!SEL.size) SEL=new Set(CODIGOS);
+function initProd(){
+  $('lProd').innerHTML=CODIGOS.map(c=>`<label><input type="checkbox" value="${c}" ${SEL.has(c)?'checked':''} style="width:auto"><b>${c}</b><span>${esc(D.arts[c]||NOM_ART[c]||'')}</span></label>`).join('')
+    +`<div class="acc"><button type="button" id="pTodos">Todos</button></div>`;
+  const upd=()=>{ $('sProd').textContent=SEL.size===CODIGOS.length?`Productos del concurso (${CODIGOS.length})`:`Productos: ${SEL.size} de ${CODIGOS.length}`; };
+  $('lProd').addEventListener('change',e=>{ const c=+e.target.value; if(!c) return; e.target.checked?SEL.add(c):SEL.delete(c);
+    if(!SEL.size){ SEL.add(c); e.target.checked=true; } st.prod=[...SEL]; save(); upd(); render(); });
+  $('pTodos').addEventListener('click',()=>{ SEL=new Set(CODIGOS); $('lProd').querySelectorAll('input').forEach(i=>i.checked=true); delete st.prod; save(); upd(); render(); });
+  upd();
+}
+document.addEventListener('click',e=>{ const d=$('dProd'); if(d.open&&!d.contains(e.target)) d.open=false; });
 const color=(c,obj)=>c>=obj?'var(--ok)':c>=obj*2/3?'var(--mid)':'var(--low)';
 function render(){
-  const {obj,V,art}=calc(), conIva=$('iva').value==='b';
+  const {obj,V}=calc(), conIva=$('iva').value==='b';
   const tb=V.reduce((a,r)=>a+r.base,0), tc=V.reduce((a,r)=>a+r.cc,0), tm=V.reduce((a,r)=>a+r.meta,0), tf=V.reduce((a,r)=>a+r.falta,0);
   const tn=V.reduce((a,r)=>a+r.neto,0), tq=V.reduce((a,r)=>a+r.q,0), ok=V.filter(r=>r.base&&!r.falta).length;
   const dm=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
@@ -216,9 +238,6 @@ function render(){
     <td><button class="exp" data-id="${r.cod}" aria-expanded="${ab}">${ab?'▾':'▸'} Ver ${fmtN(r.sin.length)}</button></td></tr>${ab?sub(r):''}`;}).join('')}</tbody>
   <tfoot><tr><td class="l" colspan="2">Total (${V.length} vendedores)</td><td>${fmtN(tb)}</td><td>${fmtN(tc)}</td><td><span class="chip" style="background:${color(tb?tc/tb:0,obj)}">${fmtP(tb?tc/tb:0)}</span></td><td class="l">${meter(tb?tc/tb:0)}</td>
     <td>${fmtN(tm)}</td><td>${tf?fmtN(tf):'✔ cumplido'}</td><td></td></tr></tfoot></table></div>`;
-  const ar=CODIGOS.map(c=>({c,nom:D.arts[c]||'(sin ventas en '+LBL+')',...art[c]})).sort((a,b)=>b.cli.size-a.cli.size||b.q-a.q);
-  $('tblArt').innerHTML=`<div class="tbl"><table style="min-width:640px"><thead><tr><th class="l">Código</th><th class="l">Artículo</th><th>Clientes con compra</th><th>Unidades</th><th>Venta $ ${conIva?'con':'sin'} IVA</th></tr></thead>
-  <tbody>${ar.map(a=>`<tr><td class="l cod">${a.c}</td><td class="l">${esc(a.nom)}</td><td><b>${fmtN(a.cli.size)}</b></td><td>${fmtN(a.q)}</td><td>${fmt$(a.neto)}</td></tr>`).join('')}</tbody></table></div>`;
 }
 document.addEventListener('click',e=>{const b=e.target.closest('.exp');if(!b)return;const id=+b.dataset.id;ABIERTOS.has(id)?ABIERTOS.delete(id):ABIERTOS.add(id);render();});
 $('obj').addEventListener('change',()=>{st.obj=+$('obj').value;save();render();});
@@ -240,7 +259,7 @@ $('pend').addEventListener('change',()=>{st.pend=$('pend').checked;save();render
     D=procesar(fm.map((x,i)=>[x[0],txts[i]]),cart);
     const m=f.name.match(/-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}/);
     $('fuente').textContent=(m?`Datos al ${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}. `:'')+`Carteras al ${cart.fecha||''}. Se actualiza a las 7 hs y 13:30 hs.`;
-    $('loadMsg').hidden=true; $('app').hidden=false; render();
+    $('loadMsg').hidden=true; $('app').hidden=false; initProd(); render();
   }catch(e){ $('loadMsg').textContent=e.message; }
 })();
 </script>
