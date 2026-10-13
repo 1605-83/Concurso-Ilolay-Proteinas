@@ -95,6 +95,7 @@ footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
 <div id="tblVend"></div>
 
 <h2>Productos del concurso</h2>
+<p class="desc">Solo ventas a clientes de la base (autoservicios y almacenes que compraron Ilolay en <span class="mB"></span>).</p>
 <div id="tblArt"></div>
 
 <footer>
@@ -194,7 +195,9 @@ function calc(){
   const obj=(+$('obj').value||30)/100, inclP=$('pend').checked, conIva=$('iva').value==='b';
   const by={}; D.V.forEach(v=>by[v.cod]={cli:{},neto:0,q:0});
   const art={}; CODIGOS.forEach(c=>art[c]={cli:new Set(),neto:0,q:0});
-  D.rows.forEach(x=>{ if(x.pend&&!inclP) return; const o=by[x.cv]; o.cli[x.k]=(o.cli[x.k]||0)+x.n; o.neto+=conIva?x.b:x.n; o.q+=x.q;
+  // solo cuentan las ventas a clientes de la base (los que compraron Ilolay en septiembre)
+  const base={}; D.V.forEach(v=>base[v.cod]=new Set(v.cartera.map(c=>String(c[0]).trim())));
+  D.rows.forEach(x=>{ if(x.pend&&!inclP) return; if(!base[x.cv].has(x.k)) return; const o=by[x.cv]; o.cli[x.k]=(o.cli[x.k]||0)+x.n; o.neto+=conIva?x.b:x.n; o.q+=x.q;
     const a=art[x.c]; a.neto+=conIva?x.b:x.n; a.q+=x.q; a.cli.add(x.cv+'|'+x.k); });
   const V=D.V.map(v=>{ const o=by[v.cod]; const buy=new Set(Object.keys(o.cli).filter(k=>o.cli[k]>0.5));
     const enBase=new Set(v.cartera.map(c=>String(c[0]).trim()));
@@ -217,7 +220,7 @@ function render(){
     ['k3','Meta de clientes',fmtN(tm),`Suma de las metas de los ${V.length} vendedores`],
     ['k4','Faltan para la meta',fmtN(tf),tf?'clientes por sumar':'✔ objetivo cumplido'],
     ['k5','Vendedores que cumplen',`${ok} de ${V.length}`,'llegaron a su meta'],
-    ['k6','Venta Proteínas',fmt$(tn),`${conIva?'Con':'Sin'} IVA · ${fmtN(tq)} unidades`]
+    ['k6','Venta Proteínas a la base',fmt$(tn),`${conIva?'Con':'Sin'} IVA · ${fmtN(tq)} unidades`]
   ].map(k=>`<div class="kpi ${k[0]}"><div class="l">${k[1]}</div><div class="v">${k[2]}</div><div class="n">${k[3]}</div></div>`).join('');
   const mx=Math.max(obj*1.6,...V.map(r=>r.cob));
   const meter=c=>`<div class="meter" title="La línea negra marca el objetivo"><i style="width:${c/mx*100}%;background:${color(c,obj)}"></i><b style="left:calc(${obj/mx*100}% - 1px)"></b></div>`;
