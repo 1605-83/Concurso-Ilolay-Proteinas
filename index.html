@@ -90,16 +90,16 @@ footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
 <section class="kpis" id="kpis"></section>
 
 <h2>Cobertura por vendedor <span class="tag" id="tagObj"></span></h2>
-<p class="desc">Base de cada vendedor = autoservicios y almacenes a los que les vendió algún producto Ilolay en <span class="mB"></span>. Clientes con compra = clientes de esa base que compraron al menos un producto Ilolay Proteínas en <span class="mC"></span>. Meta = <span id="descObj"></span> de su base de clientes.</p>
+<p class="desc">Base de cada vendedor = todos los autoservicios y almacenes de su cartera actual de clientes. Clientes con compra = clientes de esa base que compraron al menos un producto Ilolay Proteínas en <span class="mC"></span>. Meta = <span id="descObj"></span> de su base de clientes.</p>
 <div id="tblVend"></div>
 
 <h2>Productos del concurso</h2>
-<p class="desc">Solo ventas a clientes de la base (autoservicios y almacenes que compraron Ilolay en <span class="mB"></span>).</p>
+<p class="desc">Solo ventas a clientes de la base (autoservicios y almacenes de la cartera de cada vendedor).</p>
 <div id="tblArt"></div>
 
 <footer>
   Cliente con compra = cliente con importe neto positivo en los 8 productos del concurso en <span class="mC"></span> (ventas menos devoluciones).
-  Base de clientes = autoservicios y almacenes (según el ramo de la ficha de Gescom) con compra neta positiva de cualquier producto Ilolay en <span class="mB"></span> (por fecha de comprobante), asignados al vendedor que les vendió. Faltan = clientes que hay que sumar para llegar a la meta.
+  Base de clientes = autoservicios y almacenes activos de la cartera actual de cada vendedor en Gescom (según el ramo de la ficha del cliente). Faltan = clientes que hay que sumar para llegar a la meta.
   Pedidos sin facturar = pedidos cargados que todavía no tienen factura (se ubican por la fecha de carga). Verde: meta cumplida; amarillo: dos tercios de la meta o más; rojo: menos.
   <span id="fuente"></span>
 </footer>
@@ -108,18 +108,18 @@ footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
 
 <script>
 const REPO='1605-83/Reporte-Diario-Ventas', RAMOS=/^\s*(autoservicio|almac[eé]n)/i;
-// Concurso trimestral: octubre, noviembre y diciembre 2026. Base fija: autoservicios y almacenes que compraron Ilolay en septiembre.
+// Concurso trimestral: octubre, noviembre y diciembre 2026. Base: autoservicios y almacenes de la cartera actual de cada vendedor.
 // Solapas: el trimestre acumulado y el mes en curso. Va en la direccion (?vista=curso)
 const MESES_N=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const nm=ym=>MESES_N[+ym.slice(5,7)-1]+' '+ym.slice(0,4), cap=s=>s[0].toUpperCase()+s.slice(1);
-const TRIM=['2026-10','2026-11','2026-12'], MES_BASE='2026-09';
+const TRIM=['2026-10','2026-11','2026-12'];
 const MES_HOY=new Date(Date.now()-3*3600e3).toISOString().slice(0,7);
 const VISTA='trim';
 const PER=VISTA==='curso'?[MES_HOY]:TRIM.filter(m=>m<=MES_HOY);
 const LBL=VISTA==='curso'?nm(MES_HOY):'octubre a diciembre 2026';
 document.querySelectorAll('.tabs a').forEach(a=>{a.setAttribute('aria-selected',a.dataset.v===VISTA);
   const u=new URL(location.href);u.searchParams.set('vista',a.dataset.v);a.href=u.search;});
-document.querySelectorAll('.mB').forEach(e=>e.textContent=nm(MES_BASE)); document.querySelectorAll('.mC').forEach(e=>e.textContent=LBL);
+document.querySelectorAll(".mC").forEach(e=>e.textContent=LBL);
 const CODIGOS=[5323,4411,4410,4531,4530,3570,3571,5325];
 const VEND=[2,4,5,6,7,24,26,27,28,29,30,51,52,53,54,56];
 const $=id=>document.getElementById(id);
@@ -146,7 +146,10 @@ $('fFecha').addEventListener('change',e=>{const v=e.target.value;try{localStorag
   const u=new URL(location.href);u.searchParams.set('fecha',v);location.href=u.toString();});
 
 let D=null; const ABIERTOS=new Set();
-function procesar(meses, cart, txtSep){
+// nombres por si un vendedor todavia no tiene ventas de proteinas en el periodo
+const NOMBRES={2:'Fernanda Cejas',4:'Selene Pawlikowski',5:'Eliana Huber',6:'Nieves Alegre',7:'Myrian Lertora',24:'Cecilia Gauchez',26:'Sabrina Pereyra',27:'Samanta Dogliotti',
+  28:'Nadia Diaz',29:'Camila Navarrete',30:'Oriana Songini',51:'Ezequiel Valente',52:'Nicole Sosa',53:'Verona Abati',54:'Leonel Caruso',56:'Ezequiel Ferreira'};
+function procesar(meses, cart){
   const rows=[], arts={}, names={}; let dmin='', dmax='';
   // un archivo por mes; cada renglon se toma solo del archivo de su mes (un pedido puede figurar en dos meses)
   meses.forEach(([ym,txt])=>{
@@ -166,34 +169,16 @@ function procesar(meses, cart, txtSep){
     rows.push({cv,k:(r[I.cli]||'').trim(),rs:(r[I.rs]||'').trim(),c,n:num(r[I.neto]),b:num(r[I.bru]),q:num(r[I.cant]),pend});
   }
   });
-  // Base de cada vendedor: los clientes a los que les vendio algun producto Ilolay en septiembre (por fecha de comprobante)
-  const ficha={}; if(cart&&cart.v) Object.values(cart.v).forEach(l=>l.forEach(c=>{ficha[String(c[0]).trim()]=c;}));
-  const sep=baseSep(txtSep);
-  const V=VEND.map(v=>{const b=sep.por[v]||{};
-    // solo autoservicios y almacenes (ramo de la ficha del cliente en Gescom)
-    const cartera=Object.keys(b).filter(k=>b[k].n>0.5&&ficha[k]&&RAMOS.test(ficha[k][4]||'')).map(k=>ficha[k]);
-    return {cod:v,nom:names[v]||sep.names[v]||('Vendedor '+v),base:cartera.length,cartera};});
+  // Base de cada vendedor: los autoservicios y almacenes de su cartera actual (clientes activos de Gescom, ramo de la ficha)
+  const V=VEND.map(v=>{ const cartera=((cart&&cart.v&&cart.v[v])||[]).filter(c=>RAMOS.test(c[4]||''));
+    return {cod:v,nom:names[v]||NOMBRES[v]||('Vendedor '+v),base:cartera.length,cartera};});
   return {rows,arts,V,dmin,dmax};
-}
-function baseSep(txt){
-  const lines=txt.split(/\r?\n/), H=lines[0].split(';').map(h=>h.trim());
-  const ix=n=>{const i=H.indexOf(n);if(i<0)throw new Error('Falta la columna '+n+' en '+nm(MES_BASE));return i;};
-  const I={cli:ix('Cliente'),fc:ix('FechaComprobante'),fca:ix('FechaCarga'),neto:ix('ImporteNetoItem'),rs:ix('RazonSocial'),cv:ix('CodVendedor'),vn:ix('Vendedor'),prov:ix('Proveedor')};
-  const vs=new Set(VEND), por={}, names={};
-  for(let i=1;i<lines.length;i++){ const ln=lines[i]; if(ln.indexOf('ILOLAY')<0) continue;
-    const r=ln.split(';'); if(!/ILOLAY/i.test(r[I.prov]||'')) continue;
-    const cv=parseInt(r[I.cv],10); if(!vs.has(cv)) continue;
-    const f=isoDe(r[I.fc])||isoDe(r[I.fca]); if(!f||f.slice(0,7)!==MES_BASE) continue;
-    const k=(r[I.cli]||'').trim(), o=(por[cv]||(por[cv]={}));
-    (o[k]||(o[k]={n:0,rs:(r[I.rs]||'').trim()})).n+=num(r[I.neto]); names[cv]=names[cv]||titulo(r[I.vn]);
-  }
-  return {por,names};
 }
 function calc(){
   const obj=(+$('obj').value||30)/100, inclP=$('pend').checked, conIva=$('iva').value==='b';
   const by={}; D.V.forEach(v=>by[v.cod]={cli:{},neto:0,q:0});
   const art={}; CODIGOS.forEach(c=>art[c]={cli:new Set(),neto:0,q:0});
-  // solo cuentan las ventas a clientes de la base (los que compraron Ilolay en septiembre)
+  // solo cuentan las ventas a clientes de la base (autoservicios y almacenes de su cartera)
   const base={}; D.V.forEach(v=>base[v.cod]=new Set(v.cartera.map(c=>String(c[0]).trim())));
   D.rows.forEach(x=>{ if(x.pend&&!inclP) return; if(!base[x.cv].has(x.k)) return; const o=by[x.cv]; o.cli[x.k]=(o.cli[x.k]||0)+x.n; o.neto+=conIva?x.b:x.n; o.q+=x.q;
     const a=art[x.c]; a.neto+=conIva?x.b:x.n; a.q+=x.q; a.cli.add(x.cv+'|'+x.k); });
@@ -210,11 +195,11 @@ function render(){
   const tb=V.reduce((a,r)=>a+r.base,0), tc=V.reduce((a,r)=>a+r.cc,0), tm=V.reduce((a,r)=>a+r.meta,0), tf=V.reduce((a,r)=>a+r.falta,0);
   const tn=V.reduce((a,r)=>a+r.neto,0), tq=V.reduce((a,r)=>a+r.q,0), ok=V.filter(r=>r.base&&!r.falta).length;
   const dm=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
-  $('sub').textContent=`${cap(LBL)}${D.dmin?` (${dm(D.dmin)} al ${dm(D.dmax)})`:''} · por ${TF_NOM[TIPO_F]}${$('pend').checked?' · incluye pedidos sin facturar':''} · ${V.length} vendedores · base ${fmtN(tb)} autoservicios y almacenes Ilolay de ${nm(MES_BASE)}`;
+  $('sub').textContent=`${cap(LBL)}${D.dmin?` (${dm(D.dmin)} al ${dm(D.dmax)})`:''} · por ${TF_NOM[TIPO_F]}${$('pend').checked?' · incluye pedidos sin facturar':''} · ${V.length} vendedores · base ${fmtN(tb)} autoservicios y almacenes`;
   $('tagObj').textContent=`Objetivo ${fmtN(obj*100)}%`; $('descObj').textContent=fmtN(obj*100)+'%';
   $('kpis').innerHTML=[
     ['k1','Cobertura total',fmtP(tb?tc/tb:0),`Objetivo ${fmtN(obj*100)}%`],
-    ['k2','Clientes con compra',fmtN(tc),`de ${fmtN(tb)} autoservicios y almacenes Ilolay de ${nm(MES_BASE)}`],
+    ['k2','Clientes con compra',fmtN(tc),`de ${fmtN(tb)} autoservicios y almacenes en cartera`],
     ['k3','Meta de clientes',fmtN(tm),`Suma de las metas de los ${V.length} vendedores`],
     ['k4','Faltan para la meta',fmtN(tf),tf?'clientes por sumar':'✔ objetivo cumplido'],
     ['k5','Vendedores que cumplen',`${ok} de ${V.length}`,'llegaron a su meta'],
@@ -222,7 +207,7 @@ function render(){
   ].map(k=>`<div class="kpi ${k[0]}"><div class="l">${k[1]}</div><div class="v">${k[2]}</div><div class="n">${k[3]}</div></div>`).join('');
   const mx=Math.max(obj*1.6,...V.map(r=>r.cob));
   const meter=c=>`<div class="meter" title="La línea negra marca el objetivo"><i style="width:${c/mx*100}%;background:${color(c,obj)}"></i><b style="left:calc(${obj/mx*100}% - 1px)"></b></div>`;
-  const sub=r=>`<tr class="sub"><td colspan="9"><p class="subnote"><b>${esc(r.nom)}: ${fmtN(r.sin.length)} clientes que compraron Ilolay en ${nm(MES_BASE)} y todavía no compraron Ilolay Proteínas en ${LBL}.</b></p>${r.sin.length?`<div class="sublist"><table><thead><tr><th class="l">Cliente</th><th class="l">Razón social</th><th class="l">Dirección</th><th class="l">Localidad</th><th class="l">Ramo</th><th class="l">Días de visita</th></tr></thead><tbody>${r.sin.map(c=>`<tr><td class="l">${esc(c[0])}</td><td class="l">${esc(c[1])}</td><td class="l">${esc(c[2])}</td><td class="l">${esc(c[3])}</td><td class="l">${esc(c[4])}</td><td class="l">${esc(c[5])}</td></tr>`).join('')}</tbody></table></div>`:''}</td></tr>`;
+  const sub=r=>`<tr class="sub"><td colspan="9"><p class="subnote"><b>${esc(r.nom)}: ${fmtN(r.sin.length)} autoservicios y almacenes de su cartera que todavía no compraron Ilolay Proteínas en ${LBL}.</b></p>${r.sin.length?`<div class="sublist"><table><thead><tr><th class="l">Cliente</th><th class="l">Razón social</th><th class="l">Dirección</th><th class="l">Localidad</th><th class="l">Ramo</th><th class="l">Días de visita</th></tr></thead><tbody>${r.sin.map(c=>`<tr><td class="l">${esc(c[0])}</td><td class="l">${esc(c[1])}</td><td class="l">${esc(c[2])}</td><td class="l">${esc(c[3])}</td><td class="l">${esc(c[4])}</td><td class="l">${esc(c[5])}</td></tr>`).join('')}</tbody></table></div>`:''}</td></tr>`;
   const rows=[...V].sort((a,b)=>b.cob-a.cob);
   $('tblVend').innerHTML=`<div class="tbl"><table><thead><tr><th class="l">Código</th><th class="l">Vendedor</th><th>Base clientes</th><th>Clientes con compra</th><th>Cobertura</th><th class="l">Avance vs objetivo ${fmtN(obj*100)}%</th><th>Meta clientes</th><th>Faltan para objetivo</th><th>Clientes sin compra</th></tr></thead>
   <tbody>${rows.map(r=>{const ab=ABIERTOS.has(r.cod);return `<tr><td class="l cod">${r.cod}</td><td class="l">${esc(r.nom)}</td><td>${fmtN(r.base)}</td><td><b>${fmtN(r.cc)}</b></td>
@@ -247,13 +232,12 @@ $('pend').addEventListener('change',()=>{st.pend=$('pend').checked;save();render
       fetch('https://api.github.com/repos/'+REPO+'/contents/meses',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('No se pudo leer el repositorio ('+r.status+')');return r.json();}),
       fetch('https://raw.githubusercontent.com/'+REPO+'/main/carteras.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null)]);
     const ult=ym=>lst.filter(x=>x.name.startsWith('ventas-'+ym+'-')&&/\.csv$/i.test(x.name)).sort((a,b)=>b.name.localeCompare(a.name))[0];
-    const fm=PER.map(ym=>[ym,ult(ym)]).filter(x=>x[1]), fs=ult(MES_BASE);
+    const fm=PER.map(ym=>[ym,ult(ym)]).filter(x=>x[1]);
     if(!fm.length) throw new Error('Todavía no hay ventas de '+LBL);
-    if(!fs) throw new Error('No están las ventas de '+nm(MES_BASE)+' (base de clientes)');
     const f=fm[fm.length-1][1];
     const bajar=async x=>{const d=await fetch(x.download_url+'?t='+Date.now()); if(!d.ok) throw new Error('No se pudo descargar '+x.name); return new TextDecoder('windows-1252').decode(await d.arrayBuffer());};
-    const [txtSep,...txts]=await Promise.all([bajar(fs),...fm.map(x=>bajar(x[1]))]);
-    D=procesar(fm.map((x,i)=>[x[0],txts[i]]),cart,txtSep);
+    const txts=await Promise.all(fm.map(x=>bajar(x[1])));
+    D=procesar(fm.map((x,i)=>[x[0],txts[i]]),cart);
     const m=f.name.match(/-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}/);
     $('fuente').textContent=(m?`Datos al ${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}. `:'')+`Carteras al ${cart.fecha||''}. Se actualiza a las 7 hs y 13:30 hs.`;
     $('loadMsg').hidden=true; $('app').hidden=false; render();
