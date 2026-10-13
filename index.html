@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Concurso Ilolay Proteínas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E3F0FF; --panel:#F3F8FF; --line:#9CC3F0; --ink:#000; --ink2:#14304F; --bar:#C9E0FB; --input:#fff;
+  --ok:#7CFF6B; --mid:#FFE14D; --low:#FF6B6B;
+  color-scheme:light; box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#E3F0FF; --ink:#000; } }
+:root[data-theme="dark"]{ --bg:#E3F0FF; --ink:#000; }
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Archivo",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;font-variant-numeric:tabular-nums;line-height:1.4}
+.wrap{max-width:1320px;margin:0 auto;padding:28px 16px 48px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:16px;border-bottom:3px solid var(--ink);padding-bottom:14px}
+h1{font-size:clamp(1.6rem,3.2vw,2.4rem);font-weight:900;margin:0;letter-spacing:-.02em;line-height:1.05}
+.sub{margin:6px 0 0;font-size:.95rem;color:var(--ink2)}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.controls label{font-size:.85rem;display:flex;align-items:center;gap:6px}
+select,input{font:inherit;color:var(--ink);background:var(--input);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+input[type=number]{width:70px;text-align:right}
+:focus-visible{outline:3px solid #0B5ED7;outline-offset:2px}
+button{font:inherit;cursor:pointer}
+
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px;margin-top:22px}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:640px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{display:grid;grid-template-rows:auto auto 1fr;padding:14px 16px;border:2px solid var(--ink);border-radius:10px;box-shadow:5px 5px 0 var(--ink);color:#000;min-width:0}
+.kpi .l{font-size:.9rem;font-weight:700;line-height:1.2;min-height:2.4em}
+.kpi .v{font-size:clamp(1.3rem,2.2vw,2.1rem);font-weight:900;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .n{font-size:.8rem;margin-top:6px}
+.k1{background:#5C9BFF}.k2{background:#2EE6F0}.k3{background:#FFD60A}.k4{background:#FF8C1A}.k5{background:#C29BFF}.k6{background:#FF4FA3}
+
+h2{font-size:1.35rem;font-weight:900;margin:34px 0 4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+h2 .tag{font-size:.8rem;font-weight:700;border:1px solid #000;border-radius:999px;padding:2px 10px;background:#fff}
+.desc{font-size:.85rem;color:var(--ink2);margin:0 0 10px}
+.tbl{overflow-x:auto;border:1px solid var(--ink);border-radius:8px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;min-width:900px;font-size:.95rem}
+th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{background:var(--ink);color:#fff;font-weight:600;font-size:.82rem}
+th.l,td.l{text-align:left}
+tbody tr:hover{background:#D9EAFE}
+tfoot td{font-weight:800;border-top:2px solid var(--ink);border-bottom:0;background:var(--bar)}
+.cod{font-weight:800}
+.chip{display:inline-block;min-width:62px;text-align:center;padding:2px 8px;border-radius:999px;border:1px solid #000;font-weight:800}
+.meter{position:relative;height:16px;min-width:180px;border:1px solid #000;border-radius:3px;background:#fff;overflow:hidden}
+.meter i{position:absolute;inset:0 auto 0 0}
+.meter b{position:absolute;top:-2px;bottom:-2px;width:3px;background:#000}
+.exp{font:inherit;font-size:.8rem;font-weight:700;background:#fff;color:#000;border:1px solid #000;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.exp[aria-expanded="true"]{background:#000;color:#fff}
+tr.sub td{background:#fff;padding:0 12px 12px;white-space:normal}
+.sublist{border:1px solid var(--line);border-radius:6px;max-height:320px;overflow:auto;margin-top:8px}
+.sublist table{min-width:0;font-size:.85rem}
+.sublist th{position:sticky;top:0;background:#14304F}
+.sublist td,.sublist th{padding:5px 10px}
+.subnote{font-size:.8rem;color:var(--ink2);margin:8px 0 0}
+footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Concurso Ilolay<br>Proteínas</h1>
+    <p class="sub" id="sub"></p>
+  </div>
+  <div class="controls">
+    <label>Fecha <select id="fFecha" aria-label="Tipo de fecha"><option value="comp">De comprobante</option><option value="ent">De entrega</option><option value="car">De carga</option></select></label>
+    <label>Importe <select id="iva"><option value="n">Sin IVA</option><option value="b">Con IVA</option></select></label>
+    <label><input type="checkbox" id="pend" checked style="width:auto"> Incluir pedidos sin facturar</label>
+    <label>Objetivo <input type="number" id="obj" min="1" max="100" step="1" value="30">%</label>
+  </div>
+</header>
+
+<p id="loadMsg" style="margin:18px 0 0;font-weight:700">Buscando las ventas más recientes…</p>
+<div id="app" hidden>
+<section class="kpis" id="kpis"></section>
+
+<h2>Cobertura por vendedor <span class="tag" id="tagObj"></span></h2>
+<p class="desc">Clientes de la cartera de cada vendedor que compraron al menos un producto Ilolay Proteínas en octubre. Meta = <span id="descObj"></span> de su base de clientes.</p>
+<div id="tblVend"></div>
+
+<h2>Productos del concurso</h2>
+<div id="tblArt"></div>
+
+<footer>
+  Cliente con compra = cliente con importe neto positivo en los 8 productos del concurso en octubre (ventas menos devoluciones).
+  Base de clientes = clientes activos de la cartera de cada vendedor en Gescom. Faltan = clientes que hay que sumar para llegar a la meta.
+  Pedidos sin facturar = pedidos cargados que todavía no tienen factura (se ubican por la fecha de carga). Verde: meta cumplida; amarillo: dos tercios de la meta o más; rojo: menos.
+  <span id="fuente"></span>
+</footer>
+</div>
+</div>
+
+<script>
+const REPO='1605-83/Reporte-Diario-Ventas', MES='2026-10';
+const CODIGOS=[5323,4411,4410,4531,4530,3570,3571,5325];
+const VEND=[2,4,5,6,7,24,26,27,28,29,30,51,52,53,54,56];
+const $=id=>document.getElementById(id);
+const fmt$=n=>'$ '+Math.round(n).toLocaleString('es-AR');
+const fmtN=n=>Math.round(n).toLocaleString('es-AR');
+const fmtP=n=>(n*100).toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const titulo=s=>{s=(s||'').trim();if(!(s===s.toUpperCase()&&/[A-Z]/.test(s)))return s;return s.toLowerCase().replace(/(^|[^a-záéíóúñü])([a-záéíóúñü])/g,(m,a,b)=>a+b.toUpperCase());};
+const num=s=>{s=String(s||'').trim();return s?parseFloat(s.replace(/\./g,'').replace(',','.'))||0:0;};
+const isoDe=s=>{s=String(s||'').trim();let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[1]+'-'+m[2]+'-'+m[3];
+  m=s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);return m?m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'):'';};
+const HOY_ISO=new Date(Date.now()-3*3600e3).toISOString().slice(0,10);
+
+let st={}; try{st=JSON.parse(localStorage.getItem('ilolay-prot')||'{}')||{};}catch(e){st={};}
+const save=()=>{try{localStorage.setItem('ilolay-prot',JSON.stringify(st));}catch(e){}};
+if(st.obj)$('obj').value=st.obj; if(st.iva)$('iva').value=st.iva; if(st.pend===false)$('pend').checked=false;
+
+// Tipo de fecha: va en la direccion (?fecha=ent) y se recuerda, igual que en los otros tableros
+const TF_KEY='Ilolay-Proteinas-tipo-fecha', TF_NOM={comp:'fecha de comprobante',ent:'fecha de entrega',car:'fecha de carga'};
+let TIPO_F=new URLSearchParams(location.search).get('fecha')||''; if(!TIPO_F){try{TIPO_F=localStorage.getItem(TF_KEY)||'';}catch(e){}}
+if(!TF_NOM[TIPO_F]) TIPO_F='comp';
+$('fFecha').value=TIPO_F;
+$('fFecha').addEventListener('change',e=>{const v=e.target.value;try{localStorage.setItem(TF_KEY,v);}catch(err){}
+  const u=new URL(location.href);u.searchParams.set('fecha',v);location.href=u.toString();});
+
+let D=null; const ABIERTOS=new Set();
+function procesar(txt, cart){
+  const lines=txt.split(/\r?\n/), H=lines[0].split(';').map(h=>h.trim());
+  const ix=n=>{const i=H.indexOf(n);if(i<0)throw new Error('Falta la columna '+n);return i;};
+  const I={cli:ix('Cliente'),fc:ix('FechaComprobante'),fe:ix('FechaEntrega'),fca:ix('FechaCarga'),cod:ix('Codigo'),cant:ix('CantBase'),
+    neto:ix('ImporteNetoItem'),bru:ix('ImporteItem'),rs:ix('RazonSocial'),cv:ix('CodVendedor'),vn:ix('Vendedor'),art:ix('Articulo')};
+  const re=new RegExp(';('+CODIGOS.join('|')+');'), cods=new Set(CODIGOS), vs=new Set(VEND);
+  const rows=[], arts={}, names={}; let dmin='', dmax='';
+  for(let i=1;i<lines.length;i++){ const ln=lines[i]; if(!re.test(ln)) continue;
+    const r=ln.split(';'); const c=parseInt(r[I.cod],10); if(!cods.has(c)) continue;
+    const cv=parseInt(r[I.cv],10); if(!vs.has(cv)) continue;
+    const comp=isoDe(r[I.fc]), pend=comp?0:1;
+    let f=TIPO_F==='comp'?(comp||isoDe(r[I.fca])):TIPO_F==='ent'?isoDe(r[I.fe]):isoDe(r[I.fca]);
+    if(!f||f.slice(0,7)!==MES||f>HOY_ISO) continue;
+    if(!dmin||f<dmin)dmin=f; if(f>dmax)dmax=f;
+    arts[c]=arts[c]||(r[I.art]||'').trim(); names[cv]=names[cv]||titulo(r[I.vn]);
+    rows.push({cv,k:(r[I.cli]||'').trim(),rs:(r[I.rs]||'').trim(),c,n:num(r[I.neto]),b:num(r[I.bru]),q:num(r[I.cant]),pend});
+  }
+  const V=VEND.map(v=>{const c=(cart&&cart.v&&cart.v[v])||[]; return {cod:v,nom:names[v]||('Vendedor '+v),base:c.length,cartera:c};});
+  return {rows,arts,V,dmin,dmax};
+}
+function calc(){
+  const obj=(+$('obj').value||30)/100, inclP=$('pend').checked, conIva=$('iva').value==='b';
+  const by={}; D.V.forEach(v=>by[v.cod]={cli:{},neto:0,q:0});
+  const art={}; CODIGOS.forEach(c=>art[c]={cli:new Set(),neto:0,q:0});
+  D.rows.forEach(x=>{ if(x.pend&&!inclP) return; const o=by[x.cv]; o.cli[x.k]=(o.cli[x.k]||0)+x.n; o.neto+=conIva?x.b:x.n; o.q+=x.q;
+    const a=art[x.c]; a.neto+=conIva?x.b:x.n; a.q+=x.q; a.cli.add(x.cv+'|'+x.k); });
+  const V=D.V.map(v=>{ const o=by[v.cod]; const buy=new Set(Object.keys(o.cli).filter(k=>o.cli[k]>0.5));
+    const cc=buy.size, meta=Math.ceil(v.base*obj);
+    const sin=v.cartera.filter(c=>!buy.has(String(c[0]).trim())).sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
+    return {...v,cc,cob:v.base?cc/v.base:0,meta,falta:Math.max(meta-cc,0),neto:o.neto,q:o.q,sin}; });
+  return {obj,V,art};
+}
+const color=(c,obj)=>c>=obj?'var(--ok)':c>=obj*2/3?'var(--mid)':'var(--low)';
+function render(){
+  const {obj,V,art}=calc(), conIva=$('iva').value==='b';
+  const tb=V.reduce((a,r)=>a+r.base,0), tc=V.reduce((a,r)=>a+r.cc,0), tm=V.reduce((a,r)=>a+r.meta,0), tf=V.reduce((a,r)=>a+r.falta,0);
+  const tn=V.reduce((a,r)=>a+r.neto,0), tq=V.reduce((a,r)=>a+r.q,0), ok=V.filter(r=>r.base&&!r.falta).length;
+  const dm=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
+  $('sub').textContent=`Octubre 2026${D.dmin?` (${dm(D.dmin)} al ${dm(D.dmax)})`:''} · por ${TF_NOM[TIPO_F]}${$('pend').checked?' · incluye pedidos sin facturar':''} · ${V.length} vendedores · base ${fmtN(tb)} clientes`;
+  $('tagObj').textContent=`Objetivo ${fmtN(obj*100)}%`; $('descObj').textContent=fmtN(obj*100)+'%';
+  $('kpis').innerHTML=[
+    ['k1','Cobertura total',fmtP(tb?tc/tb:0),`Objetivo ${fmtN(obj*100)}%`],
+    ['k2','Clientes con compra',fmtN(tc),`de ${fmtN(tb)} clientes en cartera`],
+    ['k3','Meta de clientes',fmtN(tm),`Suma de las metas de los ${V.length} vendedores`],
+    ['k4','Faltan para la meta',fmtN(tf),tf?'clientes por sumar':'✔ objetivo cumplido'],
+    ['k5','Vendedores que cumplen',`${ok} de ${V.length}`,'llegaron a su meta'],
+    ['k6','Venta Proteínas',fmt$(tn),`${conIva?'Con':'Sin'} IVA · ${fmtN(tq)} unidades`]
+  ].map(k=>`<div class="kpi ${k[0]}"><div class="l">${k[1]}</div><div class="v">${k[2]}</div><div class="n">${k[3]}</div></div>`).join('');
+  const mx=Math.max(obj*1.6,...V.map(r=>r.cob));
+  const meter=c=>`<div class="meter" title="La línea negra marca el objetivo"><i style="width:${c/mx*100}%;background:${color(c,obj)}"></i><b style="left:calc(${obj/mx*100}% - 1px)"></b></div>`;
+  const sub=r=>`<tr class="sub"><td colspan="11"><p class="subnote"><b>${esc(r.nom)}: ${fmtN(r.sin.length)} clientes de su cartera sin compra de Ilolay Proteínas en octubre.</b></p>${r.sin.length?`<div class="sublist"><table><thead><tr><th class="l">Cliente</th><th class="l">Razón social</th><th class="l">Dirección</th><th class="l">Localidad</th><th class="l">Ramo</th><th class="l">Días de visita</th></tr></thead><tbody>${r.sin.map(c=>`<tr><td class="l">${esc(c[0])}</td><td class="l">${esc(c[1])}</td><td class="l">${esc(c[2])}</td><td class="l">${esc(c[3])}</td><td class="l">${esc(c[4])}</td><td class="l">${esc(c[5])}</td></tr>`).join('')}</tbody></table></div>`:''}</td></tr>`;
+  const rows=[...V].sort((a,b)=>b.cob-a.cob);
+  $('tblVend').innerHTML=`<div class="tbl"><table><thead><tr><th class="l">Código</th><th class="l">Vendedor</th><th>Base clientes</th><th>Clientes con compra</th><th>Cobertura</th><th class="l">Avance vs objetivo ${fmtN(obj*100)}%</th><th>Meta clientes</th><th>Faltan para objetivo</th><th>Unidades</th><th>Venta $ ${conIva?'con':'sin'} IVA</th><th>Clientes sin compra</th></tr></thead>
+  <tbody>${rows.map(r=>{const ab=ABIERTOS.has(r.cod);return `<tr><td class="l cod">${r.cod}</td><td class="l">${esc(r.nom)}</td><td>${fmtN(r.base)}</td><td><b>${fmtN(r.cc)}</b></td>
+    <td><span class="chip" style="background:${color(r.cob,obj)}">${fmtP(r.cob)}</span></td><td class="l">${meter(r.cob)}</td><td>${fmtN(r.meta)}</td>
+    <td><b>${r.falta?fmtN(r.falta):'✔ cumplido'}</b></td><td>${fmtN(r.q)}</td><td>${fmt$(r.neto)}</td>
+    <td><button class="exp" data-id="${r.cod}" aria-expanded="${ab}">${ab?'▾':'▸'} Ver ${fmtN(r.sin.length)}</button></td></tr>${ab?sub(r):''}`;}).join('')}</tbody>
+  <tfoot><tr><td class="l" colspan="2">Total (${V.length} vendedores)</td><td>${fmtN(tb)}</td><td>${fmtN(tc)}</td><td><span class="chip" style="background:${color(tb?tc/tb:0,obj)}">${fmtP(tb?tc/tb:0)}</span></td><td class="l">${meter(tb?tc/tb:0)}</td>
+    <td>${fmtN(tm)}</td><td>${tf?fmtN(tf):'✔ cumplido'}</td><td>${fmtN(tq)}</td><td>${fmt$(tn)}</td><td></td></tr></tfoot></table></div>`;
+  const ar=CODIGOS.map(c=>({c,nom:D.arts[c]||'(sin ventas en octubre)',...art[c]})).sort((a,b)=>b.cli.size-a.cli.size||b.q-a.q);
+  $('tblArt').innerHTML=`<div class="tbl"><table style="min-width:640px"><thead><tr><th class="l">Código</th><th class="l">Artículo</th><th>Clientes con compra</th><th>Unidades</th><th>Venta $ ${conIva?'con':'sin'} IVA</th></tr></thead>
+  <tbody>${ar.map(a=>`<tr><td class="l cod">${a.c}</td><td class="l">${esc(a.nom)}</td><td><b>${fmtN(a.cli.size)}</b></td><td>${fmtN(a.q)}</td><td>${fmt$(a.neto)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+document.addEventListener('click',e=>{const b=e.target.closest('.exp');if(!b)return;const id=+b.dataset.id;ABIERTOS.has(id)?ABIERTOS.delete(id):ABIERTOS.add(id);render();});
+$('obj').addEventListener('change',()=>{st.obj=+$('obj').value;save();render();});
+$('iva').addEventListener('change',()=>{st.iva=$('iva').value;save();render();});
+$('pend').addEventListener('change',()=>{st.pend=$('pend').checked;save();render();});
+
+// Ventas y carteras: las arma el robot del Reporte Diario de Ventas (7 hs y 13:30 hs, lunes a viernes)
+(async()=>{
+  try{
+    const [lst,cart]=await Promise.all([
+      fetch('https://api.github.com/repos/'+REPO+'/contents/meses',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('No se pudo leer el repositorio ('+r.status+')');return r.json();}),
+      fetch('https://raw.githubusercontent.com/'+REPO+'/main/carteras.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null)]);
+    const f=lst.filter(x=>x.name.startsWith('ventas-'+MES+'-')&&/\.csv$/i.test(x.name)).sort((a,b)=>b.name.localeCompare(a.name))[0];
+    if(!f) throw new Error('Todavía no hay ventas de octubre');
+    if(!cart||!cart.v) throw new Error('No se pudieron leer las carteras de clientes');
+    const d=await fetch(f.download_url+'?t='+Date.now()); if(!d.ok) throw new Error('No se pudo descargar '+f.name);
+    D=procesar(new TextDecoder('windows-1252').decode(await d.arrayBuffer()),cart);
+    const m=f.name.match(/-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}/);
+    $('fuente').textContent=(m?`Datos al ${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}. `:'')+`Carteras al ${cart.fecha||''}. Se actualiza a las 7 hs y 13:30 hs.`;
+    $('loadMsg').hidden=true; $('app').hidden=false; render();
+  }catch(e){ $('loadMsg').textContent=e.message; }
+})();
+</script>
+</body>
+</html>
