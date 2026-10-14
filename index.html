@@ -35,6 +35,16 @@ button{font:inherit;cursor:pointer}
 .kpi .l{font-size:.9rem;font-weight:700;line-height:1.2;min-height:2.4em}
 .kpi .v{font-size:clamp(1.3rem,2.2vw,2.1rem);font-weight:900;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpi .n{font-size:.8rem;margin-top:6px}
+.kpi{grid-template-rows:auto auto auto 1fr}
+.mini{display:block;width:100%;height:52px;margin-top:10px;align-self:end;cursor:crosshair;overflow:visible}
+.mini .mk{fill:rgba(0,0,0,.72)}
+.mini .mk.on{fill:#fff;stroke:#000;stroke-width:1;vector-effect:non-scaling-stroke}
+.k1 .mini .mk,.k3 .mini .mk,.k4 .mini .mk{cursor:pointer}
+.mini .ref{stroke:#000;stroke-width:1.5;stroke-dasharray:5 3;vector-effect:non-scaling-stroke}
+.mini .ln{fill:none;stroke:#000;stroke-width:2.5;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.mini .area{fill:rgba(255,255,255,.45)}
+.mini .xh{stroke:#000;stroke-width:1;vector-effect:non-scaling-stroke}
+.tip{position:fixed;z-index:20;pointer-events:none;background:#000;color:#fff;font-size:.8rem;line-height:1.35;padding:7px 10px;border-radius:6px;max-width:260px}
 .k1{background:#5C9BFF}.k2{background:#2EE6F0}.k3{background:#FFD60A}.k4{background:#FF8C1A}.k5{background:#C29BFF}.k6{background:#FF4FA3}
 
 h2{font-size:1.35rem;font-weight:900;margin:34px 0 4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -224,12 +234,23 @@ function render(){
   const dm=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
   $('sub').textContent=`${cap(LBL)}${dmin?` (ventas del ${dm(dmin)} al ${dm(dmax)})`:' (sin ventas en ese rango)'} · por ${TF_NOM[TIPO_F]}${$('pend').checked?' · incluye pedidos sin facturar':''} · ${V.length} vendedores · base ${fmtN(tb)} autoservicios y almacenes`;
   $('tagObj').textContent=`Objetivo ${fmtN(obj*100)}%`;
+  // mini graficos interactivos dentro de cada tarjeta (pasar el mouse: detalle; clic en un vendedor: abre sus clientes sin compra)
+  const porBase=[...V].sort((a,b)=>b.base-a.base), porCob=[...V].sort((a,b)=>b.cob-a.cob), porFal=[...V].sort((a,b)=>b.falta-a.falta);
+  const fin=d2<HOY_ISO?d2:HOY_ISO, cnt={}; V.forEach(r=>r.pri.forEach(f=>cnt[f]=(cnt[f]||0)+1));
+  const dias=[]; for(let t=new Date(d1+'T12:00:00');dias.length<200;t.setDate(t.getDate()+1)){ const s=t.toISOString().slice(0,10); if(s>fin)break; dias.push(s); }
+  let acc=0; const serie=dias.map(d=>({d,n:(acc+=cnt[d]||0),nuevo:cnt[d]||0}));
+  MINI={
+    k1:{tipo:'col',items:porBase,val:r=>r.base,tip:r=>`<b>${r.cod} · ${esc(r.nom)}</b><br>Base: ${fmtN(r.base)} clientes`},
+    k2:{tipo:'linea',items:serie,meta:tm,tip:p=>`<b>${fDia(p.d)}</b><br>${fmtN(p.n)} clientes acumulados (${fmtP(tm?p.n/tm:0)} de la meta)<br>+${fmtN(p.nuevo)} nuevos ese día`},
+    k3:{tipo:'col',items:porCob,val:r=>r.cob,ref:obj,tip:r=>`<b>${r.cod} · ${esc(r.nom)}</b><br>Cobertura ${fmtP(r.cob)} (objetivo ${fmtN(obj*100)}%)<br>${fmtN(r.cc)} de ${fmtN(r.base)} clientes`},
+    k4:{tipo:'col',items:porFal,val:r=>r.falta,tip:r=>`<b>${r.cod} · ${esc(r.nom)}</b><br>${r.falta?`Faltan ${fmtN(r.falta)} de una meta de ${fmtN(r.meta)}`:'✔ meta cumplida'}`}
+  };
   $('kpis').innerHTML=[
     ['k1','Base clientes',fmtN(tb),`Autoservicios y almacenes en cartera de ${V.length} vendedores`],
     ['k2','Clientes con compra',fmtN(tc),`de ${fmtN(tb)} clientes de la base`],
     ['k3','Cobertura total',fmtP(tb?tc/tb:0),`Objetivo ${fmtN(obj*100)}% = ${fmtN(tm)} clientes`],
     ['k4','Faltan para la meta',fmtN(tf),tf?'clientes por sumar':'✔ objetivo cumplido']
-  ].map(k=>`<div class="kpi ${k[0]}"><div class="l">${k[1]}</div><div class="v">${k[2]}</div><div class="n">${k[3]}</div></div>`).join('');
+  ].map(k=>`<div class="kpi ${k[0]}"><div class="l">${k[1]}</div><div class="v">${k[2]}</div><div class="n">${k[3]}</div>${miniSvg(k[0])}</div>`).join('');
   const mx=Math.max(obj*1.6,...V.map(r=>r.cob));
   const meter=c=>`<div class="meter" title="La línea negra marca el objetivo"><i style="width:${c/mx*100}%;background:${color(c,obj)}"></i><b style="left:calc(${obj/mx*100}% - 1px)"></b></div>`;
   const sub=r=>`<tr class="sub"><td colspan="9"><p class="subnote"><b>${esc(r.nom)}: ${fmtN(r.sin.length)} autoservicios y almacenes de su cartera que todavía no compraron Ilolay Proteínas en ${LBL}.</b></p>${r.sin.length?`<div class="sublist"><table><thead><tr><th class="l">Cliente</th><th class="l">Razón social</th><th class="l">Dirección</th><th class="l">Localidad</th><th class="l">Ramo</th><th class="l">Días de visita</th></tr></thead><tbody>${r.sin.map(c=>`<tr><td class="l">${esc(c[0])}</td><td class="l">${esc(c[1])}</td><td class="l">${esc(c[2])}</td><td class="l">${esc(c[3])}</td><td class="l">${esc(c[4])}</td><td class="l">${esc(c[5])}</td></tr>`).join('')}</tbody></table></div>`:''}</td></tr>`;
@@ -242,6 +263,36 @@ function render(){
   <tfoot><tr><td class="l" colspan="2">Total (${V.length} vendedores)</td><td>${fmtN(tb)}</td><td>${fmtN(tc)}</td><td><span class="chip" style="background:${color(tb?tc/tb:0,obj)}">${fmtP(tb?tc/tb:0)}</span></td><td class="l">${meter(tb?tc/tb:0)}</td>
     <td>${fmtN(tm)}</td><td>${tf?fmtN(tf):'✔ cumplido'}</td><td></td></tr></tfoot></table></div>`;
 }
+// ---- Mini graficos de las tarjetas ----
+let MINI={};
+const MW=200, MH=48;
+function miniSvg(k){ const m=MINI[k]; if(!m||!m.items.length) return '';
+  let body='';
+  if(m.tipo==='col'){ const n=m.items.length, w=MW/n, mx=Math.max(...m.items.map(m.val),m.ref||0)*1.08||1;
+    body=m.items.map((r,i)=>{ const h=Math.max(m.val(r)/mx*MH,1.5); return `<rect class="mk" data-i="${i}" x="${i*w+1}" y="${MH-h}" width="${Math.max(w-2,1)}" height="${h}" rx="1.5"/>`; }).join('')
+      +(m.ref?`<line x1="0" x2="${MW}" y1="${MH-m.ref/mx*MH}" y2="${MH-m.ref/mx*MH}" class="ref"/>`:'');
+  } else { const n=m.items.length, mx=Math.max(m.meta,m.items[n-1].n)*1.08||1, X=i=>n>1?i/(n-1)*MW:MW/2, Y=v=>MH-v/mx*MH;
+    const d=m.items.map((p,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(p.n).toFixed(1)).join(' ');
+    body=`<line x1="0" x2="${MW}" y1="${Y(m.meta)}" y2="${Y(m.meta)}" class="ref"/><path d="${d} L${X(n-1)} ${MH} L0 ${MH}Z" class="area"/><path d="${d}" class="ln"/>
+      <line class="xh" x1="0" x2="0" y1="0" y2="${MH}" visibility="hidden"/>`;
+  }
+  return `<svg class="mini" data-k="${k}" viewBox="0 0 ${MW} ${MH}" preserveAspectRatio="none" role="img" aria-label="Gráfico: pasá el mouse para ver el detalle">${body}</svg>`;
+}
+const tip=document.createElement('div'); tip.className='tip'; tip.hidden=true; document.body.appendChild(tip);
+function miniIdx(svg,e){ const m=MINI[svg.dataset.k], bb=svg.getBoundingClientRect(), f=Math.min(Math.max((e.clientX-bb.left)/bb.width,0),.9999);
+  return m.tipo==='col'?Math.floor(f*m.items.length):Math.round(f*(m.items.length-1)); }
+$('kpis').addEventListener('mousemove',e=>{ const svg=e.target.closest('svg.mini'); if(!svg){ tip.hidden=true; return; }
+  const m=MINI[svg.dataset.k], i=miniIdx(svg,e), it=m.items[i]; if(!it) return;
+  svg.querySelectorAll('.mk').forEach(r=>r.classList.toggle('on',+r.dataset.i===i));
+  const xh=svg.querySelector('.xh'); if(xh){ const x=m.items.length>1?i/(m.items.length-1)*MW:MW/2; xh.setAttribute('x1',x); xh.setAttribute('x2',x); xh.setAttribute('visibility','visible'); }
+  tip.innerHTML=m.tip(it)+(m.tipo==='col'?'<br><i>Clic: ver sus clientes sin compra</i>':''); tip.hidden=false;
+  const w=tip.offsetWidth,h=tip.offsetHeight; let x=e.clientX+14,y=e.clientY+14; if(x+w>innerWidth-8)x=e.clientX-w-14; if(y+h>innerHeight-8)y=e.clientY-h-14;
+  tip.style.left=x+'px'; tip.style.top=y+'px'; });
+$('kpis').addEventListener('mouseout',e=>{ const svg=e.target.closest('svg.mini'); if(svg&&!svg.contains(e.relatedTarget)){ tip.hidden=true;
+  svg.querySelectorAll('.mk.on').forEach(r=>r.classList.remove('on')); const xh=svg.querySelector('.xh'); if(xh) xh.setAttribute('visibility','hidden'); } });
+$('kpis').addEventListener('click',e=>{ const svg=e.target.closest('svg.mini'); if(!svg) return; const m=MINI[svg.dataset.k]; if(m.tipo!=='col') return;
+  const r=m.items[miniIdx(svg,e)]; if(!r) return; ABIERTOS.add(r.cod); tip.hidden=true; render();
+  const b=document.querySelector(`#tblVend .exp[data-id="${r.cod}"]`); if(b) b.closest('tr').scrollIntoView({behavior:'smooth',block:'start'}); });
 document.addEventListener('click',e=>{const b=e.target.closest('.exp');if(!b)return;const id=+b.dataset.id;ABIERTOS.has(id)?ABIERTOS.delete(id):ABIERTOS.add(id);render();});
 $('obj').addEventListener('change',()=>{st.obj=+$('obj').value;save();render();});
 $('pMes').addEventListener('change',()=>{ const m=$('pMes').value; $('pDesde').value=m?m+'-01':T_INI; $('pHasta').value=m?finMes(m):T_FIN; if(D)render(); });
