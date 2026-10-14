@@ -35,22 +35,6 @@ button{font:inherit;cursor:pointer}
 .kpi .l{font-size:.9rem;font-weight:700;line-height:1.2;min-height:2.4em}
 .kpi .v{font-size:clamp(1.3rem,2.2vw,2.1rem);font-weight:900;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpi .n{font-size:.8rem;margin-top:6px}
-.charts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:22px}
-@media (max-width:900px){.charts{grid-template-columns:minmax(0,1fr)}}
-.chart{background:#fff;border:2px solid #000;border-radius:10px;padding:14px 16px;min-width:0}
-.chart h3{margin:0;font-size:1.05rem;font-weight:900}
-.chsub{margin:2px 0 8px;font-size:.78rem;color:var(--ink2)}
-.leg{display:flex;flex-wrap:wrap;gap:12px;font-size:.78rem;margin-bottom:8px}
-.leg i{display:inline-block;width:10px;height:10px;border-radius:2px;border:1px solid #000;margin-right:5px;vertical-align:-1px}
-.hb{display:grid;grid-template-columns:minmax(90px,150px) minmax(0,1fr) 48px;align-items:center;gap:8px;padding:3px 0;cursor:pointer;border-radius:4px;font-size:.8rem}
-.hb:hover,.hb:focus-visible{background:#EAF3FF}
-.hb .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hb .tr{position:relative;height:14px;background:#EEF2F7;border-radius:0 4px 4px 0}
-.hb .tr i{position:absolute;left:0;top:0;bottom:0;border-radius:0 4px 4px 0;border:1px solid rgba(0,0,0,.35);border-left:0}
-.hb .tr b{position:absolute;top:-3px;bottom:-3px;width:2px;background:#000}
-.hb .vl{text-align:right;font-weight:800}
-#chDia svg{display:block;width:100%;height:auto;overflow:visible}
-.tip{position:fixed;z-index:20;pointer-events:none;background:#000;color:#fff;font-size:.8rem;line-height:1.35;padding:7px 10px;border-radius:6px;max-width:260px}
 .k1{background:#5C9BFF}.k2{background:#2EE6F0}.k3{background:#FFD60A}.k4{background:#FF8C1A}.k5{background:#C29BFF}.k6{background:#FF4FA3}
 
 h2{font-size:1.35rem;font-weight:900;margin:34px 0 4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -114,21 +98,6 @@ footer{margin-top:22px;font-size:.8rem;color:var(--ink2);max-width:85ch}
 <p id="loadMsg" style="margin:18px 0 0;font-weight:700">Buscando las ventas más recientes…</p>
 <div id="app" hidden>
 <section class="kpis" id="kpis"></section>
-
-<section class="charts">
-  <div class="chart">
-    <h3>Cobertura por vendedor</h3>
-    <p class="chsub">Ordenado de mayor a menor · la línea negra marca el objetivo · tocá una barra para ver sus clientes sin compra</p>
-    <div class="leg"><span><i style="background:var(--ok)"></i>Cumple</span><span><i style="background:var(--mid)"></i>2/3 del objetivo o más</span><span><i style="background:var(--low)"></i>Menos de 2/3</span></div>
-    <div id="chVend"></div>
-  </div>
-  <div class="chart">
-    <h3>Avance de clientes con compra</h3>
-    <p class="chsub">Clientes de la base acumulados por día de su primera compra · la línea punteada es la meta</p>
-    <div id="chDia"></div>
-  </div>
-</section>
-<div id="tip" class="tip" role="tooltip" hidden></div>
 
 <h2>Cobertura por vendedor <span class="tag" id="tagObj"></span></h2>
 <div id="tblVend"></div>
@@ -272,56 +241,7 @@ function render(){
     <td><button class="exp" data-id="${r.cod}" aria-expanded="${ab}">${ab?'▾':'▸'} Ver ${fmtN(r.sin.length)}</button></td></tr>${ab?sub(r):''}`;}).join('')}</tbody>
   <tfoot><tr><td class="l" colspan="2">Total (${V.length} vendedores)</td><td>${fmtN(tb)}</td><td>${fmtN(tc)}</td><td><span class="chip" style="background:${color(tb?tc/tb:0,obj)}">${fmtP(tb?tc/tb:0)}</span></td><td class="l">${meter(tb?tc/tb:0)}</td>
     <td>${fmtN(tm)}</td><td>${tf?fmtN(tf):'✔ cumplido'}</td><td></td></tr></tfoot></table></div>`;
-  graficos(V,obj,d1,d2);
 }
-// ---- Graficos interactivos (barras por vendedor y avance diario acumulado) ----
-const tip=$('tip');
-const showTip=(e,html)=>{ tip.innerHTML=html; tip.hidden=false; const w=tip.offsetWidth,h=tip.offsetHeight;
-  let x=e.clientX+14, y=e.clientY+14; if(x+w>innerWidth-8)x=e.clientX-w-14; if(y+h>innerHeight-8)y=e.clientY-h-14; tip.style.left=x+'px'; tip.style.top=y+'px'; };
-const hideTip=()=>{ tip.hidden=true; };
-let ULT=null;
-function graficos(V,obj,d1,d2){
-  ULT={V,obj,d1,d2};
-  const rs=[...V].sort((a,b)=>b.cob-a.cob), mx=Math.max(obj*1.25,...rs.map(r=>r.cob))||1;
-  $('chVend').innerHTML=rs.map(r=>`<div class="hb" tabindex="0" data-v="${r.cod}"><span class="nm">${r.cod} · ${esc(r.nom)}</span>
-    <span class="tr"><i style="width:${r.cob/mx*100}%;background:${color(r.cob,obj)}"></i><b style="left:calc(${obj/mx*100}% - 1px)"></b></span><span class="vl">${fmtP(r.cob)}</span></div>`).join('');
-  // avance diario: clientes acumulados por fecha de primera compra vs meta total
-  const tm=V.reduce((a,r)=>a+r.meta,0), fin=d2<HOY_ISO?d2:HOY_ISO, dias=[];
-  for(let t=new Date(d1+'T12:00:00');;t.setDate(t.getDate()+1)){ const s=t.toISOString().slice(0,10); if(s>fin||dias.length>200)break; dias.push(s); }
-  if(!dias.length){ $('chDia').innerHTML='<p class="chsub">Todavía no hay días con ventas en este período.</p>'; return; }
-  const cnt={}; V.forEach(r=>r.pri.forEach(f=>cnt[f]=(cnt[f]||0)+1));
-  let acc=0; const pts=dias.map(d=>({d,n:(acc+=cnt[d]||0),nuevo:cnt[d]||0}));
-  const W=Math.max(280,$('chDia').clientWidth||560), H=240, L=44, R=14, T=18, B=28;
-  const ym=Math.max(tm,acc)*1.08||1, X=i=>L+(pts.length>1?i/(pts.length-1):.5)*(W-L-R), Y=v=>T+(1-v/ym)*(H-T-B);
-  const tk=[0,.25,.5,.75,1].map(f=>Math.round(ym*f));
-  const lbl=pts.map((p,i)=>i%Math.ceil(pts.length/7)===0||i===pts.length-1?`<text x="${X(i)}" y="${H-8}" text-anchor="middle" font-size="11" fill="#14304F">${fDia(p.d)}</text>`:'').join('');
-  const linea=pts.map((p,i)=>(i?'L':'M')+X(i)+' '+Y(p.n)).join(' ');
-  $('chDia').innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Clientes con compra acumulados: ${acc} de una meta de ${tm}">
-    ${tk.map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#E3E8EF"/><text x="${L-6}" y="${Y(v)+4}" text-anchor="end" font-size="11" fill="#14304F">${fmtN(v)}</text>`).join('')}
-    <line x1="${L}" x2="${W-R}" y1="${Y(tm)}" y2="${Y(tm)}" stroke="#000" stroke-width="2" stroke-dasharray="6 4"/>
-    <text x="${W-R}" y="${Y(tm)-6}" text-anchor="end" font-size="11" font-weight="700">Meta ${fmtN(tm)}</text>
-    <path d="${linea} L${X(pts.length-1)} ${Y(0)} L${X(0)} ${Y(0)}Z" fill="#5C9BFF" opacity=".18"/>
-    <path d="${linea}" fill="none" stroke="#0B5ED7" stroke-width="2.5" stroke-linejoin="round"/>
-    <circle cx="${X(pts.length-1)}" cy="${Y(acc)}" r="5" fill="#0B5ED7" stroke="#fff" stroke-width="2"/>
-    <text x="${X(pts.length-1)-8}" y="${Y(acc)-10}" text-anchor="end" font-size="12" font-weight="800">${fmtN(acc)} clientes</text>
-    ${lbl}
-    <line id="xh" x1="0" x2="0" y1="${T}" y2="${H-B}" stroke="#000" stroke-width="1" visibility="hidden"/>
-    <circle id="xp" r="5" fill="#0B5ED7" stroke="#fff" stroke-width="2" visibility="hidden"/>
-    <rect x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}" fill="transparent" id="xz"/></svg>`;
-  const z=$('xz'), xh=$('xh'), xp=$('xp');
-  z.addEventListener('mousemove',e=>{ const bb=z.getBoundingClientRect(), f=Math.min(Math.max((e.clientX-bb.left)/bb.width,0),1), i=Math.round(f*(pts.length-1)), p=pts[i];
-    xh.setAttribute('x1',X(i)); xh.setAttribute('x2',X(i)); xh.setAttribute('visibility','visible');
-    xp.setAttribute('cx',X(i)); xp.setAttribute('cy',Y(p.n)); xp.setAttribute('visibility','visible');
-    showTip(e,`<b>${fDia(p.d)}</b><br>${fmtN(p.n)} clientes acumulados (${fmtP(tm?p.n/tm:0)} de la meta)<br>+${fmtN(p.nuevo)} nuevos ese día`); });
-  z.addEventListener('mouseleave',()=>{ hideTip(); xh.setAttribute('visibility','hidden'); xp.setAttribute('visibility','hidden'); });
-}
-$('chVend').addEventListener('mousemove',e=>{ const h=e.target.closest('.hb'); if(!h||!ULT){hideTip();return;} const r=ULT.V.find(x=>x.cod===+h.dataset.v);
-  showTip(e,`<b>${r.cod} · ${esc(r.nom)}</b><br>Cobertura ${fmtP(r.cob)} (objetivo ${fmtN(ULT.obj*100)}%)<br>${fmtN(r.cc)} de ${fmtN(r.base)} clientes con compra<br>Meta ${fmtN(r.meta)} · ${r.falta?'faltan '+fmtN(r.falta):'✔ cumplido'}`); });
-$('chVend').addEventListener('mouseleave',hideTip);
-$('chVend').addEventListener('click',e=>{ const h=e.target.closest('.hb'); if(!h) return; const v=+h.dataset.v; ABIERTOS.add(v); hideTip(); render();
-  const b=document.querySelector(`#tblVend .exp[data-id="${v}"]`); if(b) b.closest('tr').scrollIntoView({behavior:'smooth',block:'start'}); });
-$('chVend').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const h=e.target.closest('.hb'); if(h) h.click(); } });
-let rsT; addEventListener('resize',()=>{ clearTimeout(rsT); rsT=setTimeout(()=>{ if(ULT) graficos(ULT.V,ULT.obj,ULT.d1,ULT.d2); },150); });
 document.addEventListener('click',e=>{const b=e.target.closest('.exp');if(!b)return;const id=+b.dataset.id;ABIERTOS.has(id)?ABIERTOS.delete(id):ABIERTOS.add(id);render();});
 $('obj').addEventListener('change',()=>{st.obj=+$('obj').value;save();render();});
 $('pMes').addEventListener('change',()=>{ const m=$('pMes').value; $('pDesde').value=m?m+'-01':T_INI; $('pHasta').value=m?finMes(m):T_FIN; if(D)render(); });
